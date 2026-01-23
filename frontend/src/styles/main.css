@@ -1,0 +1,15 @@
+.login-container, .dashboard {
+    width: 300px;
+    margin: 100px auto;
+    text-align: center;
+}
+
+input, select, button {
+    width: 100%;
+    margin: 8px 0;
+    padding: 8px;
+}
+
+.card-container button {
+    margin: 10px 0;
+}
