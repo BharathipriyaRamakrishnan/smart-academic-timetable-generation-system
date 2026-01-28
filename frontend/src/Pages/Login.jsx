@@ -15,7 +15,7 @@ function Login() {
 
     const handleLogin = (e) => {
         e.preventDefault();
-        navigate("/dashboard");
+        navigate("/admindashboard");
     };
 
     const handleGoogleLogin = async () => {
