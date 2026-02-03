@@ -53,6 +53,7 @@ input {
     border: 1px solid #ccc;
     margin-bottom: 16px;
     font-size: 14px;
+    width: 94%;
 }
 
 input:focus {
@@ -65,9 +66,9 @@ input:focus {
     position: relative;
 }
 
-.password-field input {
-    width:  100%;
-}
+/*.password-field input {*/
+/*    width:  100%;*/
+/*}*/
 
 .password-field .eye {
     position: absolute;
