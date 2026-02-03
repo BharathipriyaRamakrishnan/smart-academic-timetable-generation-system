@@ -14,10 +14,6 @@ router.post("/login", async (req, res) => {
             return res.status(401).json({ message: "Invalid credentials" });
         }
 
-        if (user.role !== "ADMIN") {
-            return res.status(403).json({ message: "Admins only" });
-        }
-
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
             return res.status(401).json({ message: "Invalid credentials" });
@@ -31,6 +27,7 @@ router.post("/login", async (req, res) => {
 
         res.json({ token, role: user.role });
     } catch (err) {
+        console.error("Login error:", err);
         res.status(500).json({ message: "Server error" });
     }
 });

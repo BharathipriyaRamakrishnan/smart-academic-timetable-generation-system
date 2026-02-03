@@ -12,10 +12,42 @@ import { auth, googleProvider } from "../firebase";
 function Login() {
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        navigate("/admindashboard");
+        setLoading(true);
+
+        try {
+            const email = e.target[0].value;
+            const password = e.target[1].value;
+
+            const res = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                localStorage.setItem("token", data.token);
+                localStorage.setItem("role", data.role);
+
+                if (data.role === "ADMIN") {
+                    navigate("/admindashboard");
+                } else {
+                    navigate("/timetable");
+                }
+            } else {
+                alert(data.message || "Login failed");
+            }
+        } catch (error) {
+            console.error("Login Error:", error);
+            alert("Login Failed. Please check your connection.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleGoogleLogin = async () => {
@@ -64,8 +96,8 @@ function Login() {
                         </div>
 
 
-                        <button type="submit" className="primary-btn">
-                            Login
+                        <button type="submit" className="primary-btn" disabled={loading}>
+                            {loading ? "Logging in..." : "Login"}
                         </button>
 
                         <div className="divider">OR</div>

@@ -101,3 +101,63 @@ button {
   -webkit-text-fill-color: transparent;
   margin: 0;
 }
+/* Sidebar Styles */
+.sidebar {
+  width: 280px;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(16px);
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+.sidebar .logo {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin-bottom: 3rem;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #fff, var(--text-muted));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar button {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  border: 1px solid transparent;
+}
+
+.sidebar button:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+  transform: translateX(4px);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Active state simulation (can be improved with React Router NavLink) */
+.sidebar button.active {
+  background: linear-gradient(90deg, rgba(79, 70, 229, 0.1), transparent);
+  color: var(--primary);
+  border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
