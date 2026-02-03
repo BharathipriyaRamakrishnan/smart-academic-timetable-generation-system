@@ -1,6 +1,7 @@
 import './App.css';
 import Login from './Pages/Login.jsx';
 import AdminDashboard from './Pages/AdminDashboard.jsx';
+import FacultyDashboard from './Pages/FacultyDashboard.jsx';
 import { Route, Routes } from "react-router-dom";
 import Departments from "./Pages/Departments.jsx";
 import Faculty from "./Pages/Faculty.jsx";
@@ -28,7 +29,12 @@ function App() {
           <Route path="/coordinator" element={<CoordinatorDashboard />} />
         </Route>
 
-        {/* Shared/Faculty Routes */}
+        {/* Faculty Routes */}
+        <Route element={<ProtectedRoute allowedRoles={["FACULTY"]} />}>
+          <Route path="/facultydashboard" element={<FacultyDashboard />} />
+        </Route>
+
+        {/* Shared Routes */}
         <Route element={<ProtectedRoute allowedRoles={["ADMIN", "FACULTY"]} />}>
           <Route path="/timetable" element={<Timetable />} />
         </Route>

@@ -37,7 +37,7 @@ function Login() {
                 if (data.role === "ADMIN") {
                     navigate("/admindashboard");
                 } else {
-                    navigate("/timetable");
+                    navigate("/facultydashboard");
                 }
             } else {
                 alert(data.message || "Login failed");

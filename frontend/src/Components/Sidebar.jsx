@@ -20,6 +20,9 @@ export default function Sidebar() {
             <button onClick={() => navigate("/batches")}><FaUsers /> Batches</button>
           </>
         )}
+        {userRole === "FACULTY" && (
+          <button onClick={() => navigate("/facultydashboard")}><FaHome /> Dashboard</button>
+        )}
         <button onClick={() => navigate("/timetable")}><FaClock /> Timetables</button>
         <button
           onClick={() => {
