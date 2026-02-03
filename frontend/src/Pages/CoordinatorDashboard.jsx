@@ -1,4 +1,3 @@
-import "../styles/AdminDashboard.css";
 import { useState } from "react";
 
 export default function CoordinatorDashboard() {
