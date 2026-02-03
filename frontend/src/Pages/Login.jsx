@@ -26,7 +26,7 @@ function Login() {
             console.log("Google User:", user);
 
             // TEMP redirect
-            navigate("/dashboard");
+            navigate("/admindashboard");
         } catch (error) {
             console.error("Google Login Failed:", error);
         }
