@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Sidebar from "../Components/Sidebar";
 
 export default function CoordinatorDashboard() {
   const [selectedYear, setSelectedYear] = useState("1");
@@ -14,57 +15,55 @@ export default function CoordinatorDashboard() {
   };
 
   return (
-    <div className="admin-layout">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="brand">Coordinator Panel</div>
-
-        <nav>
-          <button className="nav-item active">Dashboard</button>
-          <button className="nav-item">Subjects</button>
-          <button className="nav-item">Constraints</button>
-          <button className="nav-item">Generate Timetable</button>
-        </nav>
-
-        <button className="logout">Logout</button>
-      </aside>
-
-      {/* Main */}
-      <main className="main">
-        {/* Header */}
-        <div className="header">
-          <h1>Coordinator Dashboard</h1>
-          <p>Manage Department Timetables & Constraints</p>
-        </div>
+    <div className="app-container">
+      <Sidebar />
+      <main className="main-content">
+        <header className="page-header">
+          <h1 className="page-title">Coordinator Dashboard</h1>
+          <div style={{ display: "flex", gap: "1rem" }}>
+            <span style={{ padding: "0.5rem 1rem", background: "rgba(79, 70, 229, 0.1)", borderRadius: "20px", color: "#818cf8" }}>
+              Department: {localStorage.getItem("department") || "CSE"} (Assigned)
+            </span>
+          </div>
+        </header>
 
         {/* Year Selector */}
-        <section className="content">
-          <h2>Select Academic Year</h2>
+        <section className="glass-panel" style={{ padding: "2rem", marginBottom: "2rem" }}>
+          <h2 style={{ marginTop: 0, marginBottom: "1.5rem" }}>Select Academic Year</h2>
 
-          <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             {years.map((year) => (
               <button
                 key={year}
-                className={`nav-item ${selectedYear === year ? "active" : ""}`}
+                className={selectedYear === year ? "btn-primary" : ""}
                 onClick={() => setSelectedYear(year)}
-                style={{ borderRadius: "20px" }}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  borderRadius: "12px",
+                  background: selectedYear === year ? "" : "rgba(255,255,255,0.05)",
+                  color: selectedYear === year ? "white" : "var(--text-muted)",
+                  border: "1px solid var(--glass-border)",
+                  transition: "all 0.2s"
+                }}
               >
                 Year {year}
               </button>
             ))}
           </div>
+        </section>
 
-          {/* Departments List */}
-          <h2>Departments Under Your Coordination</h2>
+        {/* Departments List */}
+        <section>
+          <h2 style={{ marginBottom: "1.5rem" }}>Your Department Overview</h2>
 
-          <div className="stats">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem" }}>
             {departments[selectedYear].map((dept) => (
-              <div key={dept} className="card">
-                <h3>Department</h3>
-                <p>{dept}</p>
+              <div key={dept} className="glass-panel" style={{ padding: "1.5rem" }}>
+                <h3 style={{ marginTop: 0, color: "var(--secondary)" }}>{dept} Department</h3>
+                <p style={{ color: "var(--text-muted)" }}>Manage student groups, faculty assignments, and constraints for this department.</p>
 
-                <div style={{ marginTop: "16px" }}>
-                  <button className="actions button">
+                <div style={{ marginTop: "1.5rem", display: "flex", gap: "1rem" }}>
+                  <button className="btn-primary" onClick={() => window.location.href = '/timetable'}>
                     Open Timetable Builder
                   </button>
                 </div>

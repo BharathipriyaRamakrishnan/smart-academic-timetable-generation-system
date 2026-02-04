@@ -24,8 +24,26 @@ const userSchema = new mongoose.Schema(
 
         role: {
             type: String,
-            enum: ["ADMIN", "HOD", "FACULTY"],
+            enum: ["ADMIN", "COORDINATOR", "FACULTY"],
             default: "FACULTY"
+        },
+
+        // For COORDINATOR role - which department they coordinate
+        coordinatorOf: {
+            type: String,
+            default: null
+        },
+
+        // For FACULTY role - availability and workload preferences
+        facultyDetails: {
+            maxHoursPerWeek: {
+                type: Number,
+                default: 40
+            },
+            availability: [{
+                day: String,
+                slots: [String]
+            }]
         },
 
         isActive: {

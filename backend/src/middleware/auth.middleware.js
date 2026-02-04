@@ -37,10 +37,18 @@ export const adminOnly = (req, res, next) => {
     next();
 };
 
-/* HOD only (future) */
-export const hodOnly = (req, res, next) => {
-    if (req.user.role !== "HOD") {
-        return res.status(403).json({ message: "HODs only" });
+/* Coordinator only */
+export const coordinatorOnly = (req, res, next) => {
+    if (req.user.role !== "COORDINATOR") {
+        return res.status(403).json({ message: "Coordinators only" });
+    }
+    next();
+};
+
+/* Admin or Coordinator (for timetable generation) */
+export const adminOrCoordinatorOnly = (req, res, next) => {
+    if (req.user.role !== "ADMIN" && req.user.role !== "COORDINATOR") {
+        return res.status(403).json({ message: "Access denied. Admins and Coordinators only." });
     }
     next();
 };

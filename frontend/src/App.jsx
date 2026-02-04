@@ -22,11 +22,15 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
           <Route path="/admindashboard" element={<AdminDashboard />} />
           <Route path="/departments" element={<Departments />} />
+        </Route>
+
+        {/* Coordinator Routes */}
+        <Route element={<ProtectedRoute allowedRoles={["COORDINATOR", "ADMIN"]} />}>
+          <Route path="/coordinator" element={<CoordinatorDashboard />} />
           <Route path="/faculty" element={<Faculty />} />
           <Route path="/classrooms" element={<Classrooms />} />
           <Route path="/subjects" element={<Subjects />} />
           <Route path="/batches" element={<Batches />} />
-          <Route path="/coordinator" element={<CoordinatorDashboard />} />
         </Route>
 
         {/* Faculty Routes */}
@@ -35,7 +39,7 @@ function App() {
         </Route>
 
         {/* Shared Routes */}
-        <Route element={<ProtectedRoute allowedRoles={["ADMIN", "FACULTY"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["ADMIN", "COORDINATOR", "FACULTY"]} />}>
           <Route path="/timetable" element={<Timetable />} />
         </Route>
 

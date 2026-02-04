@@ -36,6 +36,8 @@ function Login() {
 
                 if (data.role === "ADMIN") {
                     navigate("/admindashboard");
+                } else if (data.role === "COORDINATOR") {
+                    navigate("/coordinator");
                 } else {
                     navigate("/facultydashboard");
                 }

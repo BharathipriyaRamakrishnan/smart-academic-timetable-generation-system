@@ -8,6 +8,9 @@ import facultyRoutes from "./routes/faculty.routes.js";
 import subjectRoutes from "./routes/subject.routes.js";
 import batchRoutes from "./routes/batch.routes.js";
 import timetableRoutes from "./routes/timetable.routes.js";
+import constraintRoutes from "./routes/constraint.routes.js";
+import calendarRoutes from "./routes/calendar.routes.js";
+import assignmentRoutes from "./routes/assignment.routes.js";
 
 dotenv.config();
 
@@ -22,5 +25,8 @@ app.use("/api/faculty", facultyRoutes);
 app.use("/api/subjects", subjectRoutes);
 app.use("/api/batches", batchRoutes);
 app.use("/api/timetables", timetableRoutes);
+app.use("/api/constraints", constraintRoutes);
+app.use("/api/calendar", calendarRoutes);
+app.use("/api/assignments", assignmentRoutes);
 
 export default app;
