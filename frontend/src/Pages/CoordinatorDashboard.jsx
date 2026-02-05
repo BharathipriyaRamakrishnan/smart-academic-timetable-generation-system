@@ -57,18 +57,16 @@ export default function CoordinatorDashboard() {
           <h2 style={{ marginBottom: "1.5rem" }}>Your Department Overview</h2>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem" }}>
-            {departments[selectedYear].map((dept) => (
-              <div key={dept} className="glass-panel" style={{ padding: "1.5rem" }}>
-                <h3 style={{ marginTop: 0, color: "var(--secondary)" }}>{dept} Department</h3>
-                <p style={{ color: "var(--text-muted)" }}>Manage student groups, faculty assignments, and constraints for this department.</p>
+            <div className="glass-panel" style={{ padding: "1.5rem" }}>
+              <h3 style={{ marginTop: 0, color: "var(--secondary)" }}>{localStorage.getItem("department") || "Unknown"} Department</h3>
+              <p style={{ color: "var(--text-muted)" }}>Manage student groups, faculty assignments, and constraints for this department.</p>
 
-                <div style={{ marginTop: "1.5rem", display: "flex", gap: "1rem" }}>
-                  <button className="btn-primary" onClick={() => window.location.href = '/timetable'}>
-                    Open Timetable Builder
-                  </button>
-                </div>
+              <div style={{ marginTop: "1.5rem", display: "flex", gap: "1rem" }}>
+                <button className="btn-primary" onClick={() => window.location.href = '/timetable'}>
+                  Open Timetable Builder
+                </button>
               </div>
-            ))}
+            </div>
           </div>
         </section>
       </main>

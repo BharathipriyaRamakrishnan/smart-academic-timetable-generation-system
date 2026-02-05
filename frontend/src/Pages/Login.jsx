@@ -33,6 +33,11 @@ function Login() {
             if (res.ok) {
                 localStorage.setItem("token", data.token);
                 localStorage.setItem("role", data.role);
+                if (data.department) {
+                    localStorage.setItem("department", data.department);
+                } else {
+                    localStorage.removeItem("department"); // Clear if not coordinator
+                }
 
                 if (data.role === "ADMIN") {
                     navigate("/admindashboard");

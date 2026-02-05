@@ -10,6 +10,7 @@ import Subjects from "./Pages/Subjects.jsx";
 import Batches from "./Pages/Batches.jsx";
 import Timetable from "./Pages/Timetable.jsx";
 import CoordinatorDashboard from "./Pages/CoordinatorDashboard.jsx";
+import Coordinators from "./Pages/Coordinators.jsx";
 import ProtectedRoute from './Components/ProtectedRoute.jsx';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
           <Route path="/admindashboard" element={<AdminDashboard />} />
           <Route path="/departments" element={<Departments />} />
+          <Route path="/coordinators" element={<Coordinators />} />
         </Route>
 
         {/* Coordinator Routes */}

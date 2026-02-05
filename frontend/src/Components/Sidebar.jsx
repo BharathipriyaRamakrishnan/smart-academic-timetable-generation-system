@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { FaHome, FaUsers, FaChalkboardTeacher, FaSchool, FaClock, FaBook, FaSignOutAlt } from "react-icons/fa";
+import { FaHome, FaUsers, FaUserTie, FaChalkboardTeacher, FaSchool, FaClock, FaBook, FaSignOutAlt } from "react-icons/fa";
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -14,6 +14,7 @@ export default function Sidebar() {
           <>
             <button onClick={() => navigate("/admindashboard")}><FaHome /> Dashboard</button>
             <button onClick={() => navigate("/departments")}><FaUsers /> Departments</button>
+            <button onClick={() => navigate("/coordinators")}><FaUserTie /> Coordinators</button>
             <button onClick={() => navigate("/faculty")}><FaChalkboardTeacher /> Faculty</button>
             <button onClick={() => navigate("/classrooms")}><FaSchool /> Classrooms</button>
             <button onClick={() => navigate("/subjects")}><FaBook /> Subjects</button>
