@@ -10,6 +10,7 @@ export default function Classrooms() {
     resources: ""
   });
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchClassrooms();
@@ -117,32 +118,48 @@ export default function Classrooms() {
           {/* List */}
           <div className="glass-panel" style={{ padding: "1.5rem" }}>
             <h2 style={{ marginTop: 0 }}>All Classrooms</h2>
+            <input
+              type="text"
+              className="input-field"
+              placeholder="Search classrooms by name, type, or resources..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ marginBottom: "1rem" }}
+            />
             {loading ? <p>Loading...</p> : (
-              <div style={{ display: "grid", gap: "1rem" }}>
-                {classrooms.map((room) => (
-                  <div key={room._id} style={{
-                    background: "rgba(255,255,255,0.05)",
-                    padding: "1rem",
-                    borderRadius: "8px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <div>
-                      <h3 style={{ margin: "0 0 0.5rem 0" }}>{room.name}</h3>
-                      <p style={{ margin: 0, color: "var(--text-muted)" }}>
-                        {room.type} • Capacity: {room.capacity}
-                      </p>
-                      <small style={{ color: "var(--text-muted)" }}>{room.resources.join(", ")}</small>
-                    </div>
-                    <button
-                      onClick={() => handleDelete(room._id)}
-                      style={{ color: "#ef4444", background: "none", fontSize: "1.2rem" }}
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
+              <div style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: "0.5rem" }}>
+                <div style={{ display: "grid", gap: "1rem" }}>
+                  {classrooms
+                    .filter(room =>
+                      room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      room.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      room.resources.some(r => r.toLowerCase().includes(searchQuery.toLowerCase()))
+                    )
+                    .map((room) => (
+                      <div key={room._id} style={{
+                        background: "rgba(255,255,255,0.05)",
+                        padding: "1rem",
+                        borderRadius: "8px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}>
+                        <div>
+                          <h3 style={{ margin: "0 0 0.5rem 0" }}>{room.name}</h3>
+                          <p style={{ margin: 0, color: "var(--text-muted)" }}>
+                            {room.type} • Capacity: {room.capacity}
+                          </p>
+                          <small style={{ color: "var(--text-muted)" }}>{room.resources.join(", ")}</small>
+                        </div>
+                        <button
+                          onClick={() => handleDelete(room._id)}
+                          style={{ color: "#ef4444", background: "none", fontSize: "1.2rem" }}
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    ))}
+                </div>
               </div>
             )}
           </div>

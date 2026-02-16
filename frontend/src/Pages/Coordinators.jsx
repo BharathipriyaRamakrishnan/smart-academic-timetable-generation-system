@@ -12,6 +12,7 @@ export default function Coordinators() {
         password: "", // Default password could be set, or manual input
         department: "" // Selected department
     });
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         fetchCoordinators();
@@ -156,51 +157,67 @@ export default function Coordinators() {
                         <h2 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
                             <FaUserTie /> Coordinators List
                         </h2>
+                        <input
+                            type="text"
+                            className="input-field"
+                            placeholder="Search coordinators by name, email, or department..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            style={{ marginBottom: "1rem" }}
+                        />
 
                         {loading ? <p>Loading...</p> : (
-                            <div style={{ display: "grid", gap: "1rem" }}>
-                                {coordinators.length === 0 ? (
-                                    <p style={{ color: "var(--text-muted)" }}>No coordinators found.</p>
-                                ) : (
-                                    coordinators.map((user) => (
-                                        <div key={user._id} style={{
-                                            background: "rgba(255,255,255,0.05)",
-                                            padding: "1rem",
-                                            borderRadius: "8px",
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "center",
-                                            border: "1px solid var(--glass-border)"
-                                        }}>
-                                            <div>
-                                                <h3 style={{ margin: "0 0 0.5rem 0", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                                                    {user.name}
-                                                    {user.coordinatorOf && (
-                                                        <span style={{
-                                                            fontSize: "0.8rem",
-                                                            background: "rgba(16, 185, 129, 0.2)",
-                                                            color: "#34d399",
-                                                            padding: "2px 8px",
-                                                            borderRadius: "12px"
-                                                        }}>
-                                                            {user.coordinatorOf}
-                                                        </span>
-                                                    )}
-                                                </h3>
-                                                <p style={{ margin: 0, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                                                    <FaEnvelope /> {user.email}
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={() => handleDelete(user._id)}
-                                                style={{ color: "#ef4444", background: "none", fontSize: "1.2rem" }}
-                                                title="Delete Coordinator"
-                                            >
-                                                <FaTrash />
-                                            </button>
-                                        </div>
-                                    ))
-                                )}
+                            <div style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: "0.5rem" }}>
+                                <div style={{ display: "grid", gap: "1rem" }}>
+                                    {coordinators.length === 0 ? (
+                                        <p style={{ color: "var(--text-muted)" }}>No coordinators found.</p>
+                                    ) : (
+                                        coordinators
+                                            .filter(user =>
+                                                user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                (user.coordinatorOf && user.coordinatorOf.toLowerCase().includes(searchQuery.toLowerCase()))
+                                            )
+                                            .map((user) => (
+                                                <div key={user._id} style={{
+                                                    background: "rgba(255,255,255,0.05)",
+                                                    padding: "1rem",
+                                                    borderRadius: "8px",
+                                                    display: "flex",
+                                                    justifyContent: "space-between",
+                                                    alignItems: "center",
+                                                    border: "1px solid var(--glass-border)"
+                                                }}>
+                                                    <div>
+                                                        <h3 style={{ margin: "0 0 0.5rem 0", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                                            {user.name}
+                                                            {user.coordinatorOf && (
+                                                                <span style={{
+                                                                    fontSize: "0.8rem",
+                                                                    background: "rgba(16, 185, 129, 0.2)",
+                                                                    color: "#34d399",
+                                                                    padding: "2px 8px",
+                                                                    borderRadius: "12px"
+                                                                }}>
+                                                                    {user.coordinatorOf}
+                                                                </span>
+                                                            )}
+                                                        </h3>
+                                                        <p style={{ margin: 0, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                                            <FaEnvelope /> {user.email}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleDelete(user._id)}
+                                                        style={{ color: "#ef4444", background: "none", fontSize: "1.2rem" }}
+                                                        title="Delete Coordinator"
+                                                    >
+                                                        <FaTrash />
+                                                    </button>
+                                                </div>
+                                            ))
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

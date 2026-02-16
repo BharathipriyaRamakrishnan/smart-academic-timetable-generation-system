@@ -6,6 +6,7 @@ export default function Departments() {
   const [departments, setDepartments] = useState([]);
   const [newDept, setNewDept] = useState("");
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadDepartments();
@@ -97,59 +98,71 @@ export default function Departments() {
             <h2 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <FaBuilding /> Departments List
             </h2>
+            <input
+              type="text"
+              className="input-field"
+              placeholder="Search departments..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ marginBottom: "1rem" }}
+            />
 
             {departments.length === 0 ? (
               <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "2rem" }}>
                 No departments added yet.
               </p>
             ) : (
-              <div style={{ display: "grid", gap: "1rem" }}>
-                {departments.map((dept, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      background: "rgba(255,255,255,0.05)",
-                      padding: "1rem 1.5rem",
-                      borderRadius: "8px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      border: "1px solid var(--glass-border)"
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                      <div style={{
-                        background: "rgba(139, 92, 246, 0.2)",
-                        color: "rgb(139, 92, 246)",
-                        padding: "0.5rem",
-                        borderRadius: "6px",
-                        fontSize: "1.2rem"
-                      }}>
-                        <FaBuilding />
+              <div style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: "0.5rem" }}>
+                <div style={{ display: "grid", gap: "1rem" }}>
+                  {departments
+                    .filter(dept => dept.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((dept, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: "1rem 1.5rem",
+                          borderRadius: "8px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          border: "1px solid var(--glass-border)"
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                          <div style={{
+                            background: "rgba(139, 92, 246, 0.2)",
+                            color: "rgb(139, 92, 246)",
+                            padding: "0.5rem",
+                            borderRadius: "6px",
+                            fontSize: "1.2rem"
+                          }}>
+                            <FaBuilding />
+                          </div>
+                          <h3 style={{ margin: 0, fontSize: "1.1rem" }}>{dept}</h3>
+                        </div>
+                        <button
+                          onClick={() => handleDelete(dept)}
+                          style={{
+                            background: "rgba(239, 68, 68, 0.1)",
+                            color: "#ef4444",
+                            border: "none",
+                            padding: "0.5rem 1rem",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            transition: "all 0.2s"
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)"}
+                          onMouseOut={(e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"}
+                        >
+                          <FaTrash /> Delete
+                        </button>
                       </div>
-                      <h3 style={{ margin: 0, fontSize: "1.1rem" }}>{dept}</h3>
-                    </div>
-                    <button
-                      onClick={() => handleDelete(dept)}
-                      style={{
-                        background: "rgba(239, 68, 68, 0.1)",
-                        color: "#ef4444",
-                        border: "none",
-                        padding: "0.5rem 1rem",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                        transition: "all 0.2s"
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)"}
-                      onMouseOut={(e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"}
-                    >
-                      <FaTrash /> Delete
-                    </button>
-                  </div>
-                ))}
+                    ))}
+                </div>
               </div>
             )}
           </div>

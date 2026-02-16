@@ -5,6 +5,7 @@ export default function Timetable() {
   const [timetables, setTimetables] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeBatch, setActiveBatch] = useState(null);
+  const userRole = localStorage.getItem("role");
 
   useEffect(() => {
     fetchTimetables();
@@ -49,13 +50,15 @@ export default function Timetable() {
       <main className="main-content">
         <header className="page-header">
           <h1 className="page-title">Timetables</h1>
-          <button
-            className="btn-primary"
-            onClick={generateTimetable}
-            disabled={loading}
-          >
-            {loading ? "Generating..." : "Generate New Timetable"}
-          </button>
+          {userRole === "COORDINATOR" && (
+            <button
+              className="btn-primary"
+              onClick={generateTimetable}
+              disabled={loading}
+            >
+              {loading ? "Generating..." : "Generate New Timetable"}
+            </button>
+          )}
         </header>
 
         {timetables.length === 0 ? (
