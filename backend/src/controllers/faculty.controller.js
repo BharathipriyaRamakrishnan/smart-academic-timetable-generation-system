@@ -27,7 +27,7 @@ export const createFaculty = async (req, res) => {
 
 export const getAllFaculty = async (req, res) => {
     try {
-        const faculty = await Faculty.find();
+        const faculty = await Faculty.find().populate("subjects", "name codes");
         res.json(faculty);
     } catch (error) {
         res.status(500).json({ message: error.message });

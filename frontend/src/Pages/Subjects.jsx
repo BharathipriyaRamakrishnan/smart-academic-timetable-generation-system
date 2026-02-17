@@ -5,10 +5,10 @@ export default function Subjects() {
     const [subjects, setSubjects] = useState([]);
     const [formData, setFormData] = useState({
         name: "",
-        code: "",
+        codes: "", // Comma separated string for input
         credits: "",
         type: "Core",
-        department: "",
+        departments: [], // Array of strings
         semester: "",
         lecturesPerWeek: ""
     });
@@ -44,21 +44,30 @@ export default function Subjects() {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    const handleDepartmentChange = (e) => {
+        const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+        setFormData({ ...formData, departments: selectedOptions });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const payload = {
+                ...formData,
+                codes: formData.codes.split(",").map(c => c.trim()).filter(c => c)
+            };
             const res = await fetch("/api/subjects", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
             if (res.ok) {
                 setFormData({
                     name: "",
-                    code: "",
+                    codes: "",
                     credits: "",
                     type: "Core",
-                    department: "",
+                    departments: [],
                     semester: "",
                     lecturesPerWeek: ""
                 });
@@ -103,9 +112,9 @@ export default function Subjects() {
                             />
                             <input
                                 className="input-field"
-                                name="code"
-                                placeholder="Subject Code"
-                                value={formData.code}
+                                name="codes"
+                                placeholder="Subject Codes (comma separated)"
+                                value={formData.codes}
                                 onChange={handleChange}
                                 required
                             />
@@ -140,18 +149,21 @@ export default function Subjects() {
                                 <option value="Elective">Elective</option>
                                 <option value="Lab">Lab</option>
                             </select>
+                            <label style={{ display: "block", marginBottom: "0.5rem" }}>Select Departments:</label>
                             <select
                                 className="input-field"
-                                name="department"
-                                value={formData.department}
-                                onChange={handleChange}
+                                name="departments"
+                                multiple
+                                value={formData.departments}
+                                onChange={handleDepartmentChange}
                                 required
+                                style={{ height: "100px" }}
                             >
-                                <option value="">Select Department</option>
                                 {departments.map((dept, index) => (
                                     <option key={index} value={dept}>{dept}</option>
                                 ))}
                             </select>
+                            <small style={{ display: "block", marginBottom: "1rem", color: "var(--text-muted)" }}>Hold Ctrl/Cmd to select multiple</small>
                             <input
                                 className="input-field"
                                 name="lecturesPerWeek"
@@ -173,7 +185,7 @@ export default function Subjects() {
                         <input
                             type="text"
                             className="input-field"
-                            placeholder="Search subjects by name, code, department, or type..."
+                            placeholder="Search subjects..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             style={{ marginBottom: "1rem" }}
@@ -184,8 +196,8 @@ export default function Subjects() {
                                     {subjects
                                         .filter(s =>
                                             s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                            s.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                            s.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                            (s.codes && s.codes.some(c => c.toLowerCase().includes(searchQuery.toLowerCase()))) ||
+                                            (s.departments && s.departments.some(d => d.toLowerCase().includes(searchQuery.toLowerCase()))) ||
                                             s.type.toLowerCase().includes(searchQuery.toLowerCase())
                                         )
                                         .map((s) => (
@@ -198,9 +210,9 @@ export default function Subjects() {
                                                 alignItems: "center"
                                             }}>
                                                 <div>
-                                                    <h3 style={{ margin: "0 0 0.5rem 0" }}>{s.name} ({s.code})</h3>
+                                                    <h3 style={{ margin: "0 0 0.5rem 0" }}>{s.name} ({s.codes?.join(", ")})</h3>
                                                     <p style={{ margin: 0, color: "var(--text-muted)" }}>
-                                                        {s.department} • Sem {s.semester} • {s.credits} Credits
+                                                        {s.departments?.join(", ")} • Sem {s.semester} • {s.credits} Credits
                                                     </p>
                                                     <small style={{ color: "var(--text-muted)" }}>{s.type} • {s.lecturesPerWeek} Lectures/Week</small>
                                                 </div>

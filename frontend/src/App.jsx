@@ -9,6 +9,7 @@ import Classrooms from "./Pages/Classrooms.jsx";
 import Subjects from "./Pages/Subjects.jsx";
 import Batches from "./Pages/Batches.jsx";
 import Timetable from "./Pages/Timetable.jsx";
+import Settings from "./Pages/Settings.jsx";
 import CoordinatorDashboard from "./Pages/CoordinatorDashboard.jsx";
 import Coordinators from "./Pages/Coordinators.jsx";
 import ProtectedRoute from './Components/ProtectedRoute.jsx';
@@ -24,9 +25,10 @@ function App() {
           <Route path="/admindashboard" element={<AdminDashboard />} />
           <Route path="/departments" element={<Departments />} />
           <Route path="/coordinators" element={<Coordinators />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
 
-        {/* Coordinator Routes */}
+        {/* Coordinator & Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={["COORDINATOR", "ADMIN"]} />}>
           <Route path="/coordinator" element={<CoordinatorDashboard />} />
           <Route path="/faculty" element={<Faculty />} />

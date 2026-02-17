@@ -9,7 +9,7 @@ export const getAssignments = async (req, res) => {
             department,
             status: "ACTIVE"
         })
-            .populate("subject", "name code type")
+            .populate("subject", "name codes type")
             .populate("faculty", "name email")
             .populate("assignedBy", "name email");
 
@@ -30,7 +30,7 @@ export const getGroupAssignments = async (req, res) => {
             studentGroup: parseInt(studentGroup),
             status: "ACTIVE"
         })
-            .populate("subject", "name code type lecturesPerWeek")
+            .populate("subject", "name codes type lecturesPerWeek")
             .populate("faculty", "name email department");
 
         res.status(200).json(assignments);

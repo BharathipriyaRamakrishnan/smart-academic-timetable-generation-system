@@ -9,7 +9,8 @@ const facultySchema = new mongoose.Schema({
     unavailableSlots: [{
         day: { type: String, enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] },
         time: { type: String } // e.g., "09:00-10:00"
-    }]
+    }],
+    subjects: [{ type: mongoose.Schema.Types.ObjectId, ref: "Subject" }] // Subjects the faculty can teach
 }, { timestamps: true });
 
 export default mongoose.model("Faculty", facultySchema);

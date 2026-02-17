@@ -3,14 +3,10 @@ import Sidebar from "../Components/Sidebar";
 
 export default function Batches() {
     const [batches, setBatches] = useState([]);
-    const [subjects, setSubjects] = useState([]);
     const [formData, setFormData] = useState({
         name: "",
         department: "",
-        semester: "",
-        section: "",
-        studentsCount: "",
-        subjects: [] // Array of IDs
+        studentsCount: ""
     });
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -18,7 +14,6 @@ export default function Batches() {
 
     useEffect(() => {
         fetchBatches();
-        fetchSubjects();
         loadDepartments();
     }, []);
 
@@ -41,23 +36,8 @@ export default function Batches() {
         }
     };
 
-    const fetchSubjects = async () => {
-        try {
-            const res = await fetch("/api/subjects");
-            const data = await res.json();
-            setSubjects(data);
-        } catch (error) {
-            console.error("Error fetching subjects:", error);
-        }
-    };
-
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
-    const handleSubjectChange = (e) => {
-        const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-        setFormData({ ...formData, subjects: selectedOptions });
     };
 
     const handleSubmit = async (e) => {
@@ -72,10 +52,7 @@ export default function Batches() {
                 setFormData({
                     name: "",
                     department: "",
-                    semester: "",
-                    section: "",
-                    studentsCount: "",
-                    subjects: []
+                    studentsCount: ""
                 });
                 fetchBatches();
             }
@@ -128,25 +105,6 @@ export default function Batches() {
                                     <option key={index} value={dept}>{dept}</option>
                                 ))}
                             </select>
-                            <div style={{ display: "flex", gap: "1rem" }}>
-                                <input
-                                    className="input-field"
-                                    name="semester"
-                                    type="number"
-                                    placeholder="Sem"
-                                    value={formData.semester}
-                                    onChange={handleChange}
-                                    required
-                                />
-                                <input
-                                    className="input-field"
-                                    name="section"
-                                    placeholder="Section"
-                                    value={formData.section}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </div>
                             <input
                                 className="input-field"
                                 name="studentsCount"
@@ -156,23 +114,6 @@ export default function Batches() {
                                 onChange={handleChange}
                                 required
                             />
-
-                            <label style={{ display: "block", marginBottom: "0.5rem" }}>Select Subjects:</label>
-                            <select
-                                className="input-field"
-                                name="subjects"
-                                multiple
-                                value={formData.subjects}
-                                onChange={handleSubjectChange}
-                                style={{ height: "100px" }}
-                            >
-                                {subjects.map(sub => (
-                                    <option key={sub._id} value={sub._id}>
-                                        {sub.name} ({sub.code})
-                                    </option>
-                                ))}
-                            </select>
-                            <small style={{ display: "block", marginBottom: "1rem", color: "var(--text-muted)" }}>Hold Ctrl/Cmd to select multiple</small>
 
                             <button type="submit" className="btn-primary" style={{ width: "100%" }}>
                                 Add Batch
@@ -186,7 +127,7 @@ export default function Batches() {
                         <input
                             type="text"
                             className="input-field"
-                            placeholder="Search batches by name, department, or section..."
+                            placeholder="Search batches by name or department..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             style={{ marginBottom: "1rem" }}
@@ -197,8 +138,7 @@ export default function Batches() {
                                     {batches
                                         .filter(b =>
                                             b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                            b.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                            b.section.toLowerCase().includes(searchQuery.toLowerCase())
+                                            b.department.toLowerCase().includes(searchQuery.toLowerCase())
                                         )
                                         .map((b) => (
                                             <div key={b._id} style={{
@@ -212,9 +152,8 @@ export default function Batches() {
                                                 <div>
                                                     <h3 style={{ margin: "0 0 0.5rem 0" }}>{b.name} - {b.department}</h3>
                                                     <p style={{ margin: 0, color: "var(--text-muted)" }}>
-                                                        Sem {b.semester} • Section {b.section} • {b.studentsCount} Students
+                                                        {b.studentsCount} Students
                                                     </p>
-                                                    <small style={{ color: "var(--text-muted)" }}>{b.subjects?.length || 0} Subjects Assigned</small>
                                                 </div>
                                                 <button
                                                     onClick={() => handleDelete(b._id)}

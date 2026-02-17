@@ -7,14 +7,17 @@ export default function Faculty() {
     name: "",
     email: "",
     department: "",
-    designation: ""
+    designation: "",
+    subjects: [] // Array of IDs
   });
+  const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     fetchFaculty();
+    fetchSubjects();
     loadDepartments();
   }, []);
 
@@ -37,8 +40,23 @@ export default function Faculty() {
     }
   };
 
+  const fetchSubjects = async () => {
+    try {
+      const res = await fetch("/api/subjects");
+      const data = await res.json();
+      setSubjects(data);
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+    }
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubjectChange = (e) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    setFormData({ ...formData, subjects: selectedOptions });
   };
 
   const handleSubmit = async (e) => {
@@ -50,7 +68,7 @@ export default function Faculty() {
         body: JSON.stringify(formData),
       });
       if (res.ok) {
-        setFormData({ name: "", email: "", department: "", designation: "" });
+        setFormData({ name: "", email: "", department: "", designation: "", subjects: [] });
         fetchFaculty();
       }
     } catch (error) {
@@ -118,6 +136,22 @@ export default function Faculty() {
                 value={formData.designation}
                 onChange={handleChange}
               />
+
+              <label style={{ display: "block", marginBottom: "0.5rem" }}>Select Subjects (Ctrl/Cmd + Click):</label>
+              <select
+                className="input-field"
+                name="subjects"
+                multiple
+                value={formData.subjects}
+                onChange={handleSubjectChange}
+                style={{ height: "100px" }}
+              >
+                {subjects.map(sub => (
+                  <option key={sub._id} value={sub._id}>
+                    {sub.name} ({sub.codes?.join(", ") || sub.code})
+                  </option>
+                ))}
+              </select>
               <button type="submit" className="btn-primary" style={{ width: "100%" }}>
                 Add Faculty
               </button>
@@ -159,7 +193,10 @@ export default function Faculty() {
                           <p style={{ margin: 0, color: "var(--text-muted)" }}>
                             {f.department} • {f.designation}
                           </p>
-                          <small style={{ color: "var(--text-muted)" }}>{f.email}</small>
+                          <small style={{ display: "block", color: "var(--text-muted)" }}>{f.email}</small>
+                          <small style={{ color: "var(--text-muted)" }}>
+                            Teaches: {f.subjects?.map(s => s.name).join(", ") || "None"}
+                          </small>
                         </div>
                         <button
                           onClick={() => handleDelete(f._id)}
