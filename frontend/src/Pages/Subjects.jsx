@@ -25,6 +25,10 @@ export default function Subjects() {
         const saved = localStorage.getItem("departments");
         if (saved) {
             setDepartments(JSON.parse(saved));
+        } else {
+            // Fallback default departments if not set
+            const defaults = ["Computer Science", "Information Technology", "Electronics", "Mechanical", "Civil"];
+            setDepartments(defaults);
         }
     };
 
@@ -54,7 +58,10 @@ export default function Subjects() {
         try {
             const payload = {
                 ...formData,
-                codes: formData.codes.split(",").map(c => c.trim()).filter(c => c)
+                codes: formData.codes.split(",").map(c => c.trim()).filter(c => c),
+                credits: Number(formData.credits),
+                semester: Number(formData.semester),
+                lecturesPerWeek: Number(formData.lecturesPerWeek)
             };
             const res = await fetch("/api/subjects", {
                 method: "POST",
@@ -72,9 +79,14 @@ export default function Subjects() {
                     lecturesPerWeek: ""
                 });
                 fetchSubjects();
+                alert("Subject added successfully!");
+            } else {
+                const errorData = await res.json();
+                alert(`Error: ${errorData.message}`);
             }
         } catch (error) {
             console.error("Error creating subject:", error);
+            alert("An error occurred while creating the subject.");
         }
     };
 

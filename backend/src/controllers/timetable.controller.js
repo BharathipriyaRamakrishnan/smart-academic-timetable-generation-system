@@ -2,7 +2,19 @@ import Timetable from "../models/Timetable.js";
 
 export const getTimetables = async (req, res) => {
     try {
-        const timetables = await Timetable.find();
+        const timetables = await Timetable.find()
+            .populate({
+                path: "schedule.slots.subject",
+                select: "name codes type"
+            })
+            .populate({
+                path: "schedule.slots.faculty",
+                select: "name department designation"
+            })
+            .populate({
+                path: "schedule.slots.classroom",
+                select: "name capacity type"
+            });
         res.status(200).json(timetables);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -21,11 +33,18 @@ export const saveTimetable = async (req, res) => {
 
 import { generateSchedule } from "../services/scheduler.js";
 
-// Placeholder for generation logic
+// Generate timetable for a specific batch (coordinator) or all batches (admin)
 export const generateTimetable = async (req, res) => {
+    const { batchId, department, role } = req.body || {};
+
+    // Coordinators must specify a batch
+    if (role === "COORDINATOR" && !batchId) {
+        return res.status(400).json({ message: "Please select a batch to generate the timetable." });
+    }
+
     try {
-        const timetables = await generateSchedule();
-        res.status(200).json({ message: "Timetables generated successfully", data: timetables });
+        const timetables = await generateSchedule({ batchId, department });
+        res.status(200).json({ message: "Timetable generated successfully", data: timetables });
     } catch (error) {
         console.error("Error generating timetable:", error);
         res.status(500).json({ message: error.message });

@@ -40,8 +40,9 @@ export default function Coordinators() {
         if (saved) {
             setDepartments(JSON.parse(saved));
         } else {
-            // Fallback default
-            setDepartments(["CSE", "ECE", "EEE", "MECH", "CIVIL"]);
+            // Fallback default departments
+            const defaults = ["Computer Science", "Information Technology", "Electronics", "Mechanical", "Civil"];
+            setDepartments(defaults);
         }
     };
 

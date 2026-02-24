@@ -25,6 +25,10 @@ export default function Faculty() {
     const saved = localStorage.getItem("departments");
     if (saved) {
       setDepartments(JSON.parse(saved));
+    } else {
+      // Fallback default departments
+      const defaults = ["Computer Science", "Information Technology", "Electronics", "Mechanical", "Civil"];
+      setDepartments(defaults);
     }
   };
 
@@ -70,9 +74,14 @@ export default function Faculty() {
       if (res.ok) {
         setFormData({ name: "", email: "", department: "", designation: "", subjects: [] });
         fetchFaculty();
+        alert("Faculty added successfully!");
+      } else {
+        const errorData = await res.json();
+        alert(`Error: ${errorData.message}`);
       }
     } catch (error) {
       console.error("Error creating faculty:", error);
+      alert("An error occurred while creating faculty.");
     }
   };
 

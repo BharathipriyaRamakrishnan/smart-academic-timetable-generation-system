@@ -46,9 +46,14 @@ export default function Classrooms() {
       if (res.ok) {
         setFormData({ name: "", capacity: "", type: "Lecture Hall", resources: "" });
         fetchClassrooms();
+        alert("Classroom added successfully!");
+      } else {
+        const errorData = await res.json();
+        alert(`Error: ${errorData.message}`);
       }
     } catch (error) {
       console.error("Error creating classroom:", error);
+      alert("An error occurred while creating classroom.");
     }
   };
 
