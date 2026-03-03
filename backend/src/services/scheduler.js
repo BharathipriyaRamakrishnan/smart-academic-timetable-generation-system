@@ -21,11 +21,11 @@ export const generateSchedule = async ({ batchId, department } = {}) => {
     // ── 0. Fetch Settings ────────────────────────────────────────────────────
     const settings = await Settings.getSettings();
 
-    const startTime = settings.startTime || "09:00";
-    const endTime = settings.endTime || "17:00";
+    const startTime = settings.startTime || "08:00";
+    const endTime = settings.endTime || "16:30";
     const duration = settings.periodDuration || 60;
     const workingDays = settings.workingDays || 5;
-    const maxContinuous = settings.maxContinuousClasses || 3;
+    const maxContinuous = settings.maxContinuousClasses || 2;
     const maxLoad = settings.maxClassesPerWeek || 20;
 
     const allDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
