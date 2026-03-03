@@ -3,14 +3,14 @@ import Sidebar from "../Components/Sidebar";
 
 export default function Timetable() {
   const [timetables, setTimetables] = useState([]);
-  const [batches, setBatches] = useState([]);       // coordinator dept batches
-  const [allBatches, setAllBatches] = useState([]);  // admin: all batches
+  const [batches, setBatches] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeBatch, setActiveBatch] = useState(null);
 
   const userRole = localStorage.getItem("role");
   const userDepartment = localStorage.getItem("department");
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
     fetchTimetables();
@@ -19,7 +19,9 @@ export default function Timetable() {
 
   const fetchTimetables = async () => {
     try {
-      const res = await fetch("/api/timetables");
+      const res = await fetch("/api/timetables", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       const data = await res.json();
       // Coordinator sees only their department's timetables
       const filtered = userRole === "COORDINATOR"
@@ -34,9 +36,10 @@ export default function Timetable() {
 
   const fetchBatches = async () => {
     try {
-      const res = await fetch("/api/batches");
+      const res = await fetch("/api/batches", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       const data = await res.json();
-      setAllBatches(data);
       // Filter to coordinator's department
       const filtered = data.filter(b => b.department === userDepartment);
       setBatches(filtered);
@@ -46,21 +49,23 @@ export default function Timetable() {
   };
 
   const generateTimetable = async () => {
-    if (userRole === "COORDINATOR" && !selectedBatch) {
+    if (!selectedBatch) {
       alert("Please select a batch to generate the timetable.");
       return;
     }
     setLoading(true);
     try {
       const body = {
-        role: userRole,
-        ...(selectedBatch && { batchId: selectedBatch }),
-        ...(userRole === "COORDINATOR" && { department: userDepartment }),
+        batchId: selectedBatch,
+        department: userDepartment,
       };
 
       const res = await fetch("/api/timetables/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -163,46 +168,15 @@ export default function Timetable() {
           </div>
         )}
 
-        {/* Admin: Optional Batch Selector + Generate */}
-        {userRole === "ADMIN" && (
-          <div className="glass-panel" style={{ padding: "1.5rem", marginBottom: "2rem" }}>
-            <h2 style={{ marginTop: 0, marginBottom: "1rem" }}>Generate Timetable</h2>
-            <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end", flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: "220px" }}>
-                <label style={{ display: "block", marginBottom: "0.5rem", color: "var(--text-muted)", fontSize: "0.9rem" }}>
-                  Select Batch (Optional — leave blank to generate for all)
-                </label>
-                <select
-                  className="input-field"
-                  value={selectedBatch}
-                  onChange={e => setSelectedBatch(e.target.value)}
-                  style={{ margin: 0 }}
-                >
-                  <option value="">-- All Batches --</option>
-                  {allBatches.map(b => (
-                    <option key={b._id} value={b._id}>
-                      {b.name} {b.semester ? `• Sem ${b.semester}` : ""} ({b.department})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                className="btn-primary"
-                onClick={generateTimetable}
-                disabled={loading}
-                style={{ padding: "0.75rem 1.5rem" }}
-              >
-                {loading ? "Generating..." : "🗓 Generate Timetable"}
-              </button>
-            </div>
-          </div>
-        )}
+
 
         {/* Timetable Viewer */}
         {timetables.length === 0 ? (
           <div className="glass-panel" style={{ padding: "3rem", textAlign: "center" }}>
             <p style={{ color: "var(--text-muted)" }}>
-              No timetables found. Select a batch and click "Generate Timetable".
+              {userRole === "COORDINATOR"
+                ? 'No timetables found. Select a batch and click "Generate Timetable".'
+                : "No timetables have been generated yet."}
             </p>
           </div>
         ) : (

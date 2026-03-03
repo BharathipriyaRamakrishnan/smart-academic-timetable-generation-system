@@ -120,63 +120,51 @@ const seed = async () => {
 
         // ── Subjects ──
         console.log("Seeding subjects...");
-        let subjectCount = 0;
         for (const subjectData of sampleSubjects) {
-            const exists = await Subject.findOne({ codes: { $in: subjectData.codes } });
-            if (!exists) {
-                await Subject.create(subjectData);
-                subjectCount++;
-                console.log(`  ✓ ${subjectData.name}`);
-            } else {
-                console.log(`  – ${subjectData.name} already exists, skipping.`);
-            }
+            await Subject.findOneAndUpdate(
+                { codes: { $in: subjectData.codes } },
+                { $set: subjectData },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            console.log(`  ✓ ${subjectData.name}`);
         }
-        console.log(`Subjects: ${subjectCount} added.\n`);
+        console.log(`Subjects seeded.\n`);
 
         // ── Classrooms ──
         console.log("Seeding classrooms...");
-        let classroomCount = 0;
         for (const roomData of sampleClassrooms) {
-            const exists = await Classroom.findOne({ name: roomData.name });
-            if (!exists) {
-                await Classroom.create(roomData);
-                classroomCount++;
-                console.log(`  ✓ ${roomData.name}`);
-            } else {
-                console.log(`  – ${roomData.name} already exists, skipping.`);
-            }
+            await Classroom.findOneAndUpdate(
+                { name: roomData.name },
+                { $set: roomData },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            console.log(`  ✓ ${roomData.name}`);
         }
-        console.log(`Classrooms: ${classroomCount} added.\n`);
+        console.log(`Classrooms seeded.\n`);
 
         // ── Faculty ──
         console.log("Seeding faculty...");
-        let facultyCount = 0;
         for (const fData of sampleFaculty) {
-            const exists = await Faculty.findOne({ email: fData.email });
-            if (!exists) {
-                await Faculty.create(fData);
-                facultyCount++;
-                console.log(`  ✓ ${fData.name}`);
-            } else {
-                console.log(`  – ${fData.name} already exists, skipping.`);
-            }
+            await Faculty.findOneAndUpdate(
+                { email: fData.email },
+                { $set: fData },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            console.log(`  ✓ ${fData.name}`);
         }
-        console.log(`Faculty: ${facultyCount} added.\n`);
+        console.log(`Faculty seeded.\n`);
 
         // ── Batches ──
         console.log("Seeding batches...");
-        let batchCount = 0;
         for (const bData of sampleBatches) {
-            const exists = await Batch.findOne({ name: bData.name });
-            if (!exists) {
-                await Batch.create(bData);
-                batchCount++;
-                console.log(`  ✓ ${bData.name}`);
-            } else {
-                console.log(`  – ${bData.name} already exists, skipping.`);
-            }
+            await Batch.findOneAndUpdate(
+                { name: bData.name },
+                { $set: bData },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            console.log(`  ✓ ${bData.name}`);
         }
-        console.log(`Batches: ${batchCount} added.\n`);
+        console.log(`Batches seeded.\n`);
 
         console.log("✅ Seeding complete!");
         process.exit(0);

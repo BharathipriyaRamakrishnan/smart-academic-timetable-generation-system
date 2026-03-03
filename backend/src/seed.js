@@ -14,37 +14,33 @@ mongoose.connect(process.env.MONGO_URI)
 const seedUsers = async () => {
     try {
         // Seed Admin
-        const adminExists = await User.findOne({ email: "admin@example.com" });
-        if (!adminExists) {
-            const admin = new User({
+        await User.findOneAndUpdate(
+            { email: "admin@example.com" },
+            {
                 name: "Admin User",
                 email: "admin@example.com",
                 password: "password123",
                 role: "ADMIN"
-            });
-            await admin.save();
-            console.log("✓ Admin user created successfully!");
-        } else {
-            console.log("✓ Admin user already exists");
-        }
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        console.log("✓ Admin user seeded successfully!");
         console.log("  Email: admin@example.com");
         console.log("  Password: password123");
 
         // Seed Coordinator
-        const coordinatorExists = await User.findOne({ email: "coordinator@example.com" });
-        if (!coordinatorExists) {
-            const coordinator = new User({
+        await User.findOneAndUpdate(
+            { email: "coordinator@example.com" },
+            {
                 name: "Coordinator User",
                 email: "coordinator@example.com",
                 password: "password123",
                 role: "COORDINATOR",
-                coordinatorOf: "CSE" // Example department
-            });
-            await coordinator.save();
-            console.log("✓ Coordinator user created successfully!");
-        } else {
-            console.log("✓ Coordinator user already exists");
-        }
+                coordinatorOf: "CSE"
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        console.log("✓ Coordinator user seeded successfully!");
         console.log("  Email: coordinator@example.com");
         console.log("  Password: password123");
 

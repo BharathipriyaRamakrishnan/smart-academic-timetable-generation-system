@@ -76,9 +76,9 @@ export default function AdminDashboard() {
                 <div className="glass-panel" style={{ padding: "2rem" }}>
                     <h2>Welcome to Smart Timetable System</h2>
                     <p style={{ color: "var(--text-muted)", lineHeight: "1.6" }}>
-                        This system helps you generate optimized academic timetables automatically.
-                        Begin by adding your resources (Classrooms, Faculty, Subjects) and then defining your Batches.
-                        Once data is entered, navigate to the Timetables section to generate a conflict-free schedule.
+                        This system helps you manage the academic timetable generation system.
+                        Begin by adding resources (Classrooms, Faculty, Subjects) and defining Batches.
+                        Coordinators will generate the conflict-free timetable schedules for their departments.
                     </p>
                 </div>
             </main>

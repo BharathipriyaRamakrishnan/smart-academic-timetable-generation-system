@@ -33,12 +33,11 @@ export const saveTimetable = async (req, res) => {
 
 import { generateSchedule } from "../services/scheduler.js";
 
-// Generate timetable for a specific batch (coordinator) or all batches (admin)
+// Generate timetable — coordinator only, must specify a batch
 export const generateTimetable = async (req, res) => {
-    const { batchId, department, role } = req.body || {};
+    const { batchId, department } = req.body || {};
 
-    // Coordinators must specify a batch
-    if (role === "COORDINATOR" && !batchId) {
+    if (!batchId) {
         return res.status(400).json({ message: "Please select a batch to generate the timetable." });
     }
 
