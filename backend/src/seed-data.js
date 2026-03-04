@@ -4,6 +4,7 @@ import Subject from "./models/Subject.js";
 import Faculty from "./models/Faculty.js";
 import Batch from "./models/Batch.js";
 import Classroom from "./models/Classroom.js";
+import User from "./models/User.js";
 
 dotenv.config();
 
@@ -143,16 +144,33 @@ const seed = async () => {
         console.log(`Classrooms seeded.\n`);
 
         // ── Faculty ──
-        console.log("Seeding faculty...");
+        console.log("Seeding faculty and creating user accounts...");
         for (const fData of sampleFaculty) {
             await Faculty.findOneAndUpdate(
                 { email: fData.email },
                 { $set: fData },
                 { upsert: true, new: true, setDefaultsOnInsert: true }
             );
-            console.log(`  ✓ ${fData.name}`);
+
+            // Auto-create User account for faculty login
+            const existingUser = await User.findOne({ email: fData.email });
+            if (!existingUser) {
+                const user = new User({
+                    name: fData.name,
+                    email: fData.email,
+                    password: "password123", // Default password
+                    role: "FACULTY",
+                    department: fData.department // Store faculty department for filtering
+                });
+                await user.save();
+                console.log(`  ✓ Created user account: ${fData.email}`);
+            } else if (!existingUser.department) {
+                await User.findOneAndUpdate({ email: fData.email }, { department: fData.department });
+                console.log(`  ✓ Updated department for: ${fData.email}`);
+            }
+            console.log(`  ✓ Faculty record: ${fData.name}`);
         }
-        console.log(`Faculty seeded.\n`);
+        console.log(`Faculty and users seeded.\n`);
 
         // ── Batches ──
         console.log("Seeding batches...");

@@ -23,8 +23,8 @@ export default function Timetable() {
         headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
-      // Coordinator sees only their department's timetables
-      const filtered = userRole === "COORDINATOR"
+      // Coordinator and Faculty see only their department's timetables
+      const filtered = (userRole === "COORDINATOR" || userRole === "FACULTY")
         ? data.filter(t => t.department === userDepartment)
         : data;
       setTimetables(filtered);

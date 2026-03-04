@@ -13,7 +13,8 @@ export const createFaculty = async (req, res) => {
                 name: req.body.name,
                 email: req.body.email,
                 password: "password123", // Default password
-                role: "FACULTY"
+                role: "FACULTY",
+                department: req.body.department // Store faculty department
             });
             await user.save();
             console.log("Created User account for faculty:", req.body.email);

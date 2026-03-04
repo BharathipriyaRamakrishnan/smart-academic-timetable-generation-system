@@ -2,7 +2,15 @@ import Timetable from "../models/Timetable.js";
 
 export const getTimetables = async (req, res) => {
     try {
-        const timetables = await Timetable.find()
+        let query = {};
+
+        // FACULTY and COORDINATOR only see their own department's timetables
+        if ((req.user.role === "FACULTY" || req.user.role === "COORDINATOR") && req.user.department) {
+            query.department = req.user.department;
+        }
+        // ADMINs see all timetables (query stays empty)
+
+        const timetables = await Timetable.find(query)
             .populate({
                 path: "schedule.slots.subject",
                 select: "name codes type"

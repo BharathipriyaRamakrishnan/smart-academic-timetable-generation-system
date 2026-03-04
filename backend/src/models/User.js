@@ -34,6 +34,12 @@ const userSchema = new mongoose.Schema(
             default: null
         },
 
+        // For FACULTY role - which department they belong to
+        department: {
+            type: String,
+            default: null
+        },
+
         // For FACULTY role - availability and workload preferences
         facultyDetails: {
             maxHoursPerWeek: {

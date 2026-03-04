@@ -251,8 +251,8 @@ const seed = async () => {
         const allSubjects = await Subject.find();
         console.log("✓ Subjects seeded.\n");
 
-        // 4. Faculty (Linked to Subjects)
-        console.log("Seeding Faculty (linking to subjects)...");
+        // 4. Faculty (Linked to Subjects and Users)
+        console.log("Seeding Faculty (linking to subjects and creating users)...");
         for (const f of facultyData) {
             // Find subjects in their department
             const deptSubjects = allSubjects.filter(s => s.departments.includes(f.department));
@@ -263,8 +263,26 @@ const seed = async () => {
                 { ...f, subjects: assigned },
                 { upsert: true }
             );
+
+            // Auto-create User account for faculty login
+            const existingUser = await User.findOne({ email: f.email });
+            if (!existingUser) {
+                const user = new User({
+                    name: f.name,
+                    email: f.email,
+                    password: "password123", // Default password (will be hashed by pre-save hook)
+                    role: "FACULTY",
+                    department: f.department // Store faculty department for filtering
+                });
+                await user.save();
+                console.log(`  ✓ Created User account for: ${f.email}`);
+            } else if (!existingUser.department) {
+                // Update existing users that are missing the department field
+                await User.findOneAndUpdate({ email: f.email }, { department: f.department });
+                console.log(`  ✓ Updated department for: ${f.email}`);
+            }
         }
-        console.log("✓ Faculty seeded with linked subjects.\n");
+        console.log("✓ Faculty seeded with linked subjects and user accounts.\n");
 
         // 5. Batches (Linked to Subjects and Coordinators)
         console.log("Seeding Batches (linking to subjects correctly)...");

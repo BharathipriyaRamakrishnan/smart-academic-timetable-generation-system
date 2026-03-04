@@ -20,7 +20,8 @@ export const protect = (req, res, next) => {
 
         req.user = {
             id: decoded.id,
-            role: decoded.role
+            role: decoded.role,
+            department: decoded.department || null
         };
 
         next();

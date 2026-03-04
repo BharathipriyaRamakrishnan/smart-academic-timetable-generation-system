@@ -13,11 +13,22 @@ export default function FacultyDashboard() {
 
     const fetchTimetables = async () => {
         try {
-            const res = await fetch("/api/timetables");
+            const token = localStorage.getItem("token");
+            const department = localStorage.getItem("department");
+
+            const res = await fetch("/api/timetables", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
             const data = await res.json();
-            setTimetables(data);
-            if (data.length > 0) {
-                setSelectedTimetable(data[0]);
+
+            // Filter to only show timetables for this faculty's department
+            const filtered = Array.isArray(data) && department
+                ? data.filter(t => t.department === department)
+                : (Array.isArray(data) ? data : []);
+
+            setTimetables(filtered);
+            if (filtered.length > 0) {
+                setSelectedTimetable(filtered[0]);
             }
         } catch (error) {
             console.error("Error fetching timetables:", error);

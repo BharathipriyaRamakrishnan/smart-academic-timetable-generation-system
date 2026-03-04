@@ -28,8 +28,10 @@ router.post("/login", async (req, res) => {
         }
 
         console.log("Login successful for:", email);
+        const department = user.coordinatorOf || user.department || null;
+
         const token = jwt.sign(
-            { id: user._id, role: user.role },
+            { id: user._id, role: user.role, department },
             process.env.JWT_SECRET,
             { expiresIn: "1d" }
         );
@@ -37,7 +39,7 @@ router.post("/login", async (req, res) => {
         res.json({
             token,
             role: user.role,
-            department: user.coordinatorOf // Send department info
+            department  // coordinators use coordinatorOf, faculty use department
         });
     } catch (err) {
         console.error("Login error:", err);
