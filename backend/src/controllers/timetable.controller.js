@@ -5,10 +5,15 @@ export const getTimetables = async (req, res) => {
         let query = {};
 
         // FACULTY and COORDINATOR only see their own department's timetables
-        if ((req.user.role === "FACULTY" || req.user.role === "COORDINATOR") && req.user.department) {
-            query.department = req.user.department;
+        if (req.user.role === "FACULTY" || req.user.role === "COORDINATOR") {
+            if (req.user.department) {
+                query.department = req.user.department;
+            } else {
+                // If they don't have a department assigned, they should see NOTHING
+                // instead of seeing EVERYTHING.
+                return res.status(200).json([]);
+            }
         }
-        // ADMINs see all timetables (query stays empty)
 
         const timetables = await Timetable.find(query)
             .populate({
