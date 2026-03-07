@@ -233,6 +233,7 @@ export default function Timetable() {
               const cellColor = (slot) => {
                 if (!slot) return { bg: "rgba(255,255,255,0.02)", border: "rgba(255,255,255,0.05)" };
                 if (slot.type === "Break" || slot.type === "Lunch") return { bg: "rgba(234,179,8,0.15)", border: "rgba(234,179,8,0.3)" };
+                if (slot.type === "Free") return { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)" };
                 if (slot.type === "Lab") return { bg: "rgba(16,185,129,0.15)", border: "rgba(16,185,129,0.3)" };
                 return { bg: "rgba(79,70,229,0.18)", border: "rgba(79,70,229,0.35)" };
               };
@@ -251,10 +252,10 @@ export default function Timetable() {
                   {/* Legend */}
                   <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
                     {[
-                      { label: "Lecture", bg: "rgba(79,70,229,0.18)", border: "rgba(79,70,229,0.35)" },
-                      { label: "Lab", bg: "rgba(16,185,129,0.15)", border: "rgba(16,185,129,0.3)" },
-                      { label: "Break", bg: "rgba(234,179,8,0.15)", border: "rgba(234,179,8,0.3)" },
-                      { label: "Free", bg: "rgba(255,255,255,0.02)", border: "rgba(255,255,255,0.05)" },
+                      { label: "Lecture",      bg: "rgba(79,70,229,0.18)",    border: "rgba(79,70,229,0.35)" },
+                      { label: "Lab",          bg: "rgba(16,185,129,0.15)",   border: "rgba(16,185,129,0.3)" },
+                      { label: "Break/Lunch",  bg: "rgba(234,179,8,0.15)",    border: "rgba(234,179,8,0.3)" },
+                      { label: "Study Period", bg: "rgba(255,255,255,0.03)",  border: "rgba(255,255,255,0.08)" },
                     ].map(({ label, bg, border }) => (
                       <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.78rem", color: "var(--text-muted)" }}>
                         <div style={{ width: 14, height: 14, background: bg, border: `1px solid ${border}`, borderRadius: 3 }} />
@@ -312,6 +313,7 @@ export default function Timetable() {
                             {days.map(day => {
                               const slot = slotMap[day]?.[time];
                               const isBreak = slot?.type === "Break" || slot?.type === "Lunch";
+                              const isFree  = slot?.type === "Free";
                               const colors = cellColor(slot);
                               return (
                                 <td key={day} style={{ padding: "2px" }}>
@@ -328,9 +330,13 @@ export default function Timetable() {
                                   }}>
                                     {isBreak ? (
                                       <span style={{ fontSize: "0.75rem", color: "#fbbf24", fontWeight: 600, textAlign: "center" }}>
-                                        ☕ {slot.type}
+                                        {slot.type === "Lunch" ? "🍽" : "☕"} {slot.type === "Lunch" ? "Lunch Break" : "Break"}
                                       </span>
-                                    ) : slot ? (
+                                    ) : isFree ? (
+                                      <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.25)", textAlign: "center", fontStyle: "italic" }}>
+                                        📖 Study Period
+                                      </span>
+                                    ) : slot?.subject ? (
                                       <>
                                         <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#e2e8f0", lineHeight: 1.2 }}>
                                           {slot.subject?.name || "—"}

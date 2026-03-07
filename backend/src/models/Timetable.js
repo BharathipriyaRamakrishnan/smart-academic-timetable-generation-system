@@ -18,7 +18,7 @@ const timetableSchema = new mongoose.Schema({
             subject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject" },
             faculty: { type: mongoose.Schema.Types.ObjectId, ref: "Faculty" },
             classroom: { type: mongoose.Schema.Types.ObjectId, ref: "Classroom" },
-            type: { type: String, enum: ["Lecture", "Lab", "Break"] }
+            type: { type: String, enum: ["Lecture", "Lab", "Break", "Lunch", "Free"] }
         }]
     }],
 

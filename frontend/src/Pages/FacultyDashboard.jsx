@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../Components/Sidebar";
-import { FaClock, FaCalendarAlt } from "react-icons/fa";
+import { FaClock } from "react-icons/fa";
 
 export default function FacultyDashboard() {
     const [timetables, setTimetables] = useState([]);
-    const [selectedTimetable, setSelectedTimetable] = useState(null);
+    const [activeBatch, setActiveBatch] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const token = localStorage.getItem("token");
+    const department = localStorage.getItem("department");
 
     useEffect(() => {
         fetchTimetables();
@@ -13,23 +16,17 @@ export default function FacultyDashboard() {
 
     const fetchTimetables = async () => {
         try {
-            const token = localStorage.getItem("token");
-            const department = localStorage.getItem("department");
-
             const res = await fetch("/api/timetables", {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             const data = await res.json();
 
-            // Filter to only show timetables for this faculty's department
             const filtered = Array.isArray(data) && department
                 ? data.filter(t => t.department === department)
                 : (Array.isArray(data) ? data : []);
 
             setTimetables(filtered);
-            if (filtered.length > 0) {
-                setSelectedTimetable(filtered[0]);
-            }
+            if (filtered.length > 0) setActiveBatch(filtered[0]._id);
         } catch (error) {
             console.error("Error fetching timetables:", error);
         } finally {
@@ -37,148 +34,234 @@ export default function FacultyDashboard() {
         }
     };
 
-    const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    const currentTimetable = timetables.find(t => t._id === activeBatch);
+
+    const cellColor = (slot) => {
+        if (!slot) return { bg: "rgba(255,255,255,0.02)", border: "rgba(255,255,255,0.05)" };
+        if (slot.type === "Break" || slot.type === "Lunch") return { bg: "rgba(234,179,8,0.15)", border: "rgba(234,179,8,0.3)" };
+        if (slot.type === "Free") return { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)" };
+        if (slot.type === "Lab") return { bg: "rgba(16,185,129,0.15)", border: "rgba(16,185,129,0.3)" };
+        return { bg: "rgba(79,70,229,0.18)", border: "rgba(79,70,229,0.35)" };
+    };
 
     return (
         <div className="app-container">
             <Sidebar />
             <main className="main-content">
                 <header className="page-header">
-                    <h1 className="page-title">Faculty Dashboard</h1>
+                    <h1 className="page-title">My Timetable</h1>
+                    {department && (
+                        <div style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            padding: "0.4rem 1rem",
+                            background: "rgba(79, 70, 229, 0.1)",
+                            borderRadius: "20px",
+                            color: "#818cf8",
+                            fontSize: "0.9rem"
+                        }}>
+                            Department: <strong>{department}</strong>
+                        </div>
+                    )}
                 </header>
 
-                {/* Welcome Card */}
-                <div className="glass-panel" style={{ padding: "2rem", marginBottom: "2rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                        <div style={{
-                            background: "rgba(139, 92, 246, 0.2)",
-                            padding: "1rem",
-                            borderRadius: "12px",
-                            fontSize: "2rem",
-                            color: "rgb(139, 92, 246)"
-                        }}>
-                            <FaCalendarAlt />
-                        </div>
-                        <div>
-                            <h2 style={{ margin: 0 }}>Welcome, Faculty Member</h2>
-                            <p style={{ margin: "0.5rem 0 0 0", color: "var(--text-muted)" }}>
-                                View your assigned timetables and schedules below
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Timetable Selection */}
-                {timetables.length > 0 && (
-                    <div style={{ marginBottom: "1.5rem" }}>
-                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
-                            Select Timetable:
-                        </label>
-                        <select
-                            className="input-field"
-                            value={selectedTimetable?._id || ""}
-                            onChange={(e) => {
-                                const tt = timetables.find(t => t._id === e.target.value);
-                                setSelectedTimetable(tt);
-                            }}
-                            style={{ maxWidth: "400px" }}
-                        >
-                            {timetables.map((tt) => (
-                                <option key={tt._id} value={tt._id}>
-                                    {tt.name} - {tt.department} (Sem {tt.semester})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                )}
-
-                {/* Timetable Display */}
                 {loading ? (
-                    <div className="glass-panel" style={{ padding: "2rem", textAlign: "center" }}>
-                        <p>Loading timetables...</p>
+                    <div className="glass-panel" style={{ padding: "3rem", textAlign: "center" }}>
+                        <p style={{ color: "var(--text-muted)" }}>Loading timetables...</p>
                     </div>
                 ) : timetables.length === 0 ? (
-                    <div className="glass-panel" style={{ padding: "2rem", textAlign: "center" }}>
+                    <div className="glass-panel" style={{ padding: "3rem", textAlign: "center" }}>
                         <FaClock style={{ fontSize: "3rem", color: "var(--text-muted)", marginBottom: "1rem" }} />
                         <h3>No Timetables Available</h3>
                         <p style={{ color: "var(--text-muted)" }}>
-                            Timetables will appear here once they are generated by the admin.
+                            Timetables will appear here once they are generated by the admin or coordinator.
                         </p>
                     </div>
-                ) : selectedTimetable ? (
-                    <div className="glass-panel" style={{ padding: "1.5rem", overflowX: "auto" }}>
-                        <h2 style={{ marginTop: 0 }}>{selectedTimetable.name}</h2>
-                        <table style={{
-                            width: "100%",
-                            borderCollapse: "collapse",
-                            marginTop: "1rem"
-                        }}>
-                            <thead>
-                                <tr style={{ background: "rgba(255,255,255,0.05)" }}>
-                                    <th style={{ padding: "1rem", textAlign: "left", borderBottom: "1px solid var(--glass-border)" }}>
-                                        Time
-                                    </th>
-                                    {DAYS.map(day => (
-                                        <th key={day} style={{ padding: "1rem", textAlign: "left", borderBottom: "1px solid var(--glass-border)" }}>
-                                            {day}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {selectedTimetable.schedule && selectedTimetable.schedule.length > 0 ? (
-                                    (() => {
-                                        const allTimes = new Set();
-                                        selectedTimetable.schedule.forEach(daySchedule => {
-                                            daySchedule.slots?.forEach(slot => allTimes.add(slot.time));
-                                        });
-                                        const sortedTimes = Array.from(allTimes).sort();
+                ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
 
-                                        return sortedTimes.map(time => (
-                                            <tr key={time}>
-                                                <td style={{ padding: "1rem", borderBottom: "1px solid var(--glass-border)", fontWeight: 500 }}>
-                                                    {time}
-                                                </td>
-                                                {DAYS.map(day => {
-                                                    const daySchedule = selectedTimetable.schedule.find(d => d.day === day);
-                                                    const slot = daySchedule?.slots?.find(s => s.time === time);
+                        {/* Batch Selector Tabs */}
+                        <div style={{ display: "flex", gap: "0.75rem", overflowX: "auto", paddingBottom: "0.5rem", flexWrap: "wrap" }}>
+                            {timetables.map(t => (
+                                <button
+                                    key={t._id}
+                                    onClick={() => setActiveBatch(t._id)}
+                                    style={{
+                                        background: activeBatch === t._id ? "var(--primary)" : "rgba(255,255,255,0.08)",
+                                        color: "white",
+                                        padding: "0.5rem 1.2rem",
+                                        borderRadius: "20px",
+                                        border: activeBatch === t._id ? "none" : "1px solid var(--glass-border)",
+                                        cursor: "pointer",
+                                        whiteSpace: "nowrap",
+                                        fontSize: "0.875rem",
+                                        transition: "all 0.2s"
+                                    }}
+                                >
+                                    {t.name} {t.semester ? `· Sem ${t.semester}` : ""}
+                                </button>
+                            ))}
+                        </div>
 
-                                                    return (
-                                                        <td key={day} style={{ padding: "1rem", borderBottom: "1px solid var(--glass-border)" }}>
-                                                            {slot ? (
-                                                                <div style={{
-                                                                    background: "rgba(79, 70, 229, 0.1)",
-                                                                    padding: "0.5rem",
-                                                                    borderRadius: "6px",
-                                                                    borderLeft: "3px solid rgb(79, 70, 229)"
-                                                                }}>
-                                                                    <div style={{ fontWeight: 600 }}>
-                                                                        {slot.subject?.name || "N/A"}
-                                                                    </div>
-                                                                    <small style={{ color: "var(--text-muted)" }}>
-                                                                        {slot.classroom?.name || "TBA"}
-                                                                    </small>
-                                                                </div>
-                                                            ) : (
-                                                                <span style={{ color: "var(--text-muted)" }}>-</span>
-                                                            )}
+                        {/* Timetable Grid */}
+                        {currentTimetable && (() => {
+                            const allTimes = [];
+                            const seenTimes = new Set();
+                            currentTimetable.schedule.forEach(daySch => {
+                                daySch.slots.forEach(slot => {
+                                    if (!seenTimes.has(slot.time)) {
+                                        seenTimes.add(slot.time);
+                                        allTimes.push(slot.time);
+                                    }
+                                });
+                            });
+                            allTimes.sort();
+
+                            const days = currentTimetable.schedule.map(d => d.day);
+
+                            const slotMap = {};
+                            currentTimetable.schedule.forEach(daySch => {
+                                slotMap[daySch.day] = {};
+                                daySch.slots.forEach(slot => {
+                                    slotMap[daySch.day][slot.time] = slot;
+                                });
+                            });
+
+                            return (
+                                <div className="glass-panel" style={{ padding: "1.5rem", overflowX: "auto" }}>
+                                    {/* Header */}
+                                    <div style={{ marginBottom: "1.25rem" }}>
+                                        <h2 style={{ marginTop: 0, marginBottom: "0.25rem" }}>{currentTimetable.name}</h2>
+                                        <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "0.9rem" }}>
+                                            {currentTimetable.department} &nbsp;•&nbsp; Semester {currentTimetable.semester}
+                                            {currentTimetable.section ? ` • Section ${currentTimetable.section}` : ""}
+                                        </p>
+                                    </div>
+
+                                    {/* Legend */}
+                                    <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+                                        {[
+                                            { label: "Lecture",      bg: "rgba(79,70,229,0.18)",   border: "rgba(79,70,229,0.35)" },
+                                            { label: "Lab",          bg: "rgba(16,185,129,0.15)",  border: "rgba(16,185,129,0.3)" },
+                                            { label: "Break/Lunch",  bg: "rgba(234,179,8,0.15)",   border: "rgba(234,179,8,0.3)" },
+                                            { label: "Study Period", bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)" },
+                                        ].map(({ label, bg, border }) => (
+                                            <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                                                <div style={{ width: 14, height: 14, background: bg, border: `1px solid ${border}`, borderRadius: 3 }} />
+                                                {label}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Grid */}
+                                    <div style={{ overflowX: "auto" }}>
+                                        <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "3px", minWidth: `${days.length * 140 + 110}px` }}>
+                                            <thead>
+                                                <tr>
+                                                    <th style={{
+                                                        padding: "0.6rem 1rem",
+                                                        textAlign: "left",
+                                                        background: "rgba(255,255,255,0.05)",
+                                                        borderRadius: "6px",
+                                                        fontSize: "0.8rem",
+                                                        color: "var(--text-muted)",
+                                                        whiteSpace: "nowrap"
+                                                    }}>
+                                                        Time
+                                                    </th>
+                                                    {days.map(day => (
+                                                        <th key={day} style={{
+                                                            padding: "0.6rem 1rem",
+                                                            textAlign: "center",
+                                                            background: "rgba(79,70,229,0.2)",
+                                                            borderRadius: "6px",
+                                                            fontSize: "0.85rem",
+                                                            fontWeight: 600,
+                                                            color: "#a5b4fc",
+                                                            whiteSpace: "nowrap"
+                                                        }}>
+                                                            {day}
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {allTimes.map(time => (
+                                                    <tr key={time}>
+                                                        <td style={{
+                                                            padding: "0.5rem 0.75rem",
+                                                            fontSize: "0.78rem",
+                                                            color: "var(--text-muted)",
+                                                            whiteSpace: "nowrap",
+                                                            background: "rgba(255,255,255,0.03)",
+                                                            borderRadius: "6px",
+                                                            fontWeight: 500
+                                                        }}>
+                                                            {time}
                                                         </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        ));
-                                    })()
-                                ) : (
-                                    <tr>
-                                        <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-                                            No schedule data available
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                                        {days.map(day => {
+                                                            const slot = slotMap[day]?.[time];
+                                                            const isBreak = slot?.type === "Break" || slot?.type === "Lunch";
+                                                            const isFree  = slot?.type === "Free";
+                                                            const colors = cellColor(slot);
+                                                            return (
+                                                                <td key={day} style={{ padding: "2px" }}>
+                                                                    <div style={{
+                                                                        background: colors.bg,
+                                                                        border: `1px solid ${colors.border}`,
+                                                                        borderRadius: "6px",
+                                                                        padding: "0.5rem 0.625rem",
+                                                                        minHeight: "62px",
+                                                                        display: "flex",
+                                                                        flexDirection: "column",
+                                                                        justifyContent: "center",
+                                                                        gap: "2px"
+                                                                    }}>
+                                                                        {isBreak ? (
+                                                                            <span style={{ fontSize: "0.75rem", color: "#fbbf24", fontWeight: 600, textAlign: "center" }}>
+                                                                                {slot.type === "Lunch" ? "🍽" : "☕"} {slot.type === "Lunch" ? "Lunch Break" : "Break"}
+                                                                            </span>
+                                                                        ) : isFree ? (
+                                                                            <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.25)", textAlign: "center", fontStyle: "italic" }}>
+                                                                                📖 Study Period
+                                                                            </span>
+                                                                        ) : slot?.subject ? (
+                                                                            <>
+                                                                                <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#e2e8f0", lineHeight: 1.2 }}>
+                                                                                    {slot.subject?.name || "—"}
+                                                                                </div>
+                                                                                {slot.subject?.codes?.[0] && (
+                                                                                    <div style={{ fontSize: "0.68rem", color: "#a5b4fc", fontWeight: 500 }}>
+                                                                                        {slot.subject.codes[0]}
+                                                                                    </div>
+                                                                                )}
+                                                                                <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "2px" }}>
+                                                                                    👤 {slot.faculty?.name || "—"}
+                                                                                </div>
+                                                                                {slot.classroom?.name && (
+                                                                                    <div style={{ fontSize: "0.68rem", color: "#64748b" }}>
+                                                                                        🏛 {slot.classroom.name}
+                                                                                    </div>
+                                                                                )}
+                                                                            </>
+                                                                        ) : (
+                                                                            <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.15)", textAlign: "center" }}>—</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
-                ) : null}
+                )}
             </main>
         </div>
     );
