@@ -32,6 +32,7 @@ import Subject   from "../models/Subject.js";
 import Batch     from "../models/Batch.js";
 import Timetable from "../models/Timetable.js";
 import Settings  from "../models/Settings.js";
+import LeaveRequest from "../models/LeaveRequest.js";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -131,7 +132,7 @@ function tryPlace({
     subject, faculty, rooms, day, slotIndex, sessLen,
     TIME_SLOTS, batchId_str, usedMap, facultyWeekCount, facultyDayCount,
     batchDayCount, subjectDayCount, maxFacultyPerWeek, maxFacultyPerDay,
-    maxBatchPerDay, maxSubjectRepeatDay, daySch, batchDayCountGlobal,
+    maxBatchPerDay, maxSubjectRepeatDay, daySch, facultyLeaveMap,
     incFacultyLoad, incBatchDay, incSubjectDay
 }) {
     const sid = subject._id.toString();
@@ -153,6 +154,8 @@ function tryPlace({
 
     // Faculty check
     const fid = faculty._id.toString();
+    if (facultyLeaveMap?.[fid]?.has(day)) return false; // Faculty on leave this day!
+    
     if ((facultyWeekCount[fid] || 0) + sessLen > maxFacultyPerWeek) return false;
     if ((facultyDayCount[fid]?.[day] || 0) + sessLen > maxFacultyPerDay) return false;
     for (let k = 0; k < sessLen; k++) {
@@ -195,7 +198,7 @@ function tryPlace({
 
 // ─── main export ─────────────────────────────────────────────────────────────
 
-export const generateSchedule = async ({ batchId, department } = {}) => {
+export const generateSchedule = async ({ batchId, department, generatedBy } = {}) => {
 
     // ── 0. Settings ───────────────────────────────────────────────────────────
     const settings = await Settings.getSettings();
@@ -244,7 +247,61 @@ export const generateSchedule = async ({ batchId, department } = {}) => {
         facultyDayCount[fid][day] = (facultyDayCount[fid][day] || 0) + n;
     };
 
+    // ── 2b. Load approved leaves ──────────────────────────────────────────────
+    const facultyLeaveMap = {}; // { facultyId: Set(["Monday", ...]) }
+    const approvedLeaves = await LeaveRequest.find({ status: "APPROVED" });
+
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+    for (const leave of approvedLeaves) {
+        if (!leave.faculty) continue;
+        const fid = leave.faculty.toString();
+        if (!facultyLeaveMap[fid]) facultyLeaveMap[fid] = new Set();
+        
+        const d = new Date(leave.date);
+        const dayName = dayNames[d.getUTCDay()];
+        facultyLeaveMap[fid].add(dayName);
+    }
+
+    console.log(`[Scheduler] Loaded ${approvedLeaves.length} approved leave days.`);
+
     const generatedTimetables = [];
+
+    // ── 2a. Load existing timetables for global conflict detection ────────────
+    // We must ignore the timetables that are about to be REPLACED (same batch/sem)
+    // to allow regeneration for the same batch without conflicting with its own old version.
+    const replaceNames = batches.map(b => b.name);
+    const existingTimetables = await Timetable.find({
+        $or: [
+            { department: { $ne: department } }, // Other departments
+            { name: { $nin: replaceNames } }      // Same department but different batches
+        ]
+    });
+
+    console.log(`[Scheduler] Loading ${existingTimetables.length} existing timetables to prevent global overlaps...`);
+
+    for (const et of existingTimetables) {
+        for (const daySch of et.schedule) {
+            const day = daySch.day;
+            for (const slot of daySch.slots) {
+                if (!slot.faculty || !slot.subject) continue; // Skip free/break slots
+
+                const time = slot.time;
+                const fid  = slot.faculty.toString();
+                const rid  = slot.classroom?.toString();
+                
+                // Track faculty load and usage
+                markUsed(fid, day, time);
+                incFacultyLoad(fid, day, 1);
+                
+                // Track room usage
+                if (rid) markUsed(rid, day, time);
+                
+                // Track batch usage (though not strictly necessary as we generate new batches,
+                // it's good for completeness if we ever generate partially)
+            }
+        }
+    }
 
     // ── 3. Process each batch ─────────────────────────────────────────────────
     for (const batch of batches) {
@@ -272,6 +329,9 @@ export const generateSchedule = async ({ batchId, department } = {}) => {
             section:      batch.section  || "",
             studentGroup: batch.studentGroup || 1,
             schedule:     DAYS.map(day => ({ day, slots: [] })),
+            status:       "PENDING_APPROVAL",
+            generatedBy:  generatedBy || null,
+            version:      1
         };
 
         // ── 3a. Find subjects ─────────────────────────────────────────────────
@@ -312,6 +372,7 @@ export const generateSchedule = async ({ batchId, department } = {}) => {
             const pool = getFacultyPool(subject)
                 .filter(f => {
                     const fid = f._id.toString();
+                    if (facultyLeaveMap[fid]?.has(day)) return false; // Early exit if on leave
                     return (
                         (facultyWeekCount[fid] || 0) + sessLen <= maxFacultyPerWeek &&
                         (facultyDayCount[fid]?.[day] || 0) + sessLen <= maxFacultyPerDay
@@ -371,7 +432,7 @@ export const generateSchedule = async ({ batchId, department } = {}) => {
                         subject, faculty, rooms, day, slotIndex: i, sessLen,
                         TIME_SLOTS, batchId_str, usedMap, facultyWeekCount, facultyDayCount,
                         batchDayCount, subjectDayCount, maxFacultyPerWeek, maxFacultyPerDay,
-                        maxBatchPerDay, maxSubjectRepeatDay, daySch,
+                        maxBatchPerDay, maxSubjectRepeatDay, daySch, facultyLeaveMap,
                         incFacultyLoad, incBatchDay, incSubjectDay
                     });
                     if (placed_) { placed = true; remaining -= sessLen; break; }
@@ -387,9 +448,6 @@ export const generateSchedule = async ({ batchId, department } = {}) => {
         // ── 3f. PASS 2: Fill every remaining empty class slot ─────────────────
         // Build a weighted cycle of subjects: subjects with more lecturesPerWeek
         // appear more often so the repeat distribution stays proportional.
-        //
-        // Lecture subjects only (labs already need consecutive blocks; filling
-        // with lone lecture slots is safer for conflict avoidance).
         const lectureSubjects = subjects.filter(s => s.type !== "Lab");
 
         // Weighted list: subject appears proportionally to its weekly load
@@ -515,11 +573,18 @@ export const generateSchedule = async ({ batchId, department } = {}) => {
 
     // ── 4. Persist ────────────────────────────────────────────────────────────
     if (batchId) {
-        await Timetable.deleteMany({ name: { $in: generatedTimetables.map(t => t.name) } });
+        // Surgical: delete only for the specific batch(es) we just generated
+        await Timetable.deleteMany({
+            department: department,
+            name: { $in: generatedTimetables.map(t => t.name) },
+            semester: { $in: generatedTimetables.map(t => t.semester) }
+        });
+    } else if (department) {
+        await Timetable.deleteMany({ department: department });
     } else {
         await Timetable.deleteMany({});
     }
 
     const saved = await Timetable.insertMany(generatedTimetables);
     return saved;
-};
+};

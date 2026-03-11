@@ -1,5 +1,38 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../Components/Sidebar";
+import { FaHourglassHalf, FaCheckCircle, FaBan, FaCalendarAlt, FaInfoCircle } from "react-icons/fa";
+
+// ── Status badge config (mirrored from AdminDashboard) ─────────
+const STATUS_CONFIG = {
+  DRAFT: { label: "Draft", color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
+  PENDING_APPROVAL: { label: "Pending Approval", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  APPROVED: { label: "Approved", color: "#10b981", bg: "rgba(16,185,129,0.12)" },
+  REJECTED: { label: "Rejected", color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+  PUBLISHED: { label: "Published", color: "#818cf8", bg: "rgba(129,140,248,0.12)" },
+};
+
+const StatusBadge = ({ status }) => {
+  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.DRAFT;
+  return (
+    <span style={{
+      padding: "0.25rem 0.75rem",
+      borderRadius: "20px",
+      fontSize: "0.75rem",
+      fontWeight: 600,
+      color: cfg.color,
+      background: cfg.bg,
+      border: `1px solid ${cfg.color}40`,
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "0.4rem"
+    }}>
+      {status === "PENDING_APPROVAL" && <FaHourglassHalf size={10} />}
+      {status === "APPROVED" && <FaCheckCircle size={10} />}
+      {status === "REJECTED" && <FaBan size={10} />}
+      {cfg.label}
+    </span>
+  );
+};
 
 export default function Timetable() {
   const [timetables, setTimetables] = useState([]);
@@ -71,7 +104,7 @@ export default function Timetable() {
       const data = await res.json();
       if (res.ok) {
         fetchTimetables();
-        alert("Timetable generated successfully!");
+        alert("Timetable generated successfully! It is now pending admin approval.");
       } else {
         alert("Error: " + data.message);
       }
@@ -196,10 +229,24 @@ export default function Timetable() {
                     cursor: "pointer",
                     whiteSpace: "nowrap",
                     fontSize: "0.875rem",
-                    transition: "all 0.2s"
+                    transition: "all 0.2s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem"
                   }}
                 >
                   {t.name} {t.semester ? `· Sem ${t.semester}` : ""}
+                  {(userRole === "COORDINATOR" || userRole === "ADMIN") && (
+                    <span style={{ 
+                      fontSize: "10px", 
+                      opacity: 0.8,
+                      background: "rgba(0,0,0,0.2)",
+                      padding: "2px 6px",
+                      borderRadius: "10px"
+                    }}>
+                      {t.status === "APPROVED" ? "✓" : t.status === "REJECTED" ? "×" : "..."}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -241,12 +288,40 @@ export default function Timetable() {
               return (
                 <div className="glass-panel" style={{ padding: "1.5rem", overflowX: "auto" }}>
                   {/* Header */}
-                  <div style={{ marginBottom: "1.25rem" }}>
-                    <h2 style={{ marginTop: 0, marginBottom: "0.25rem" }}>{currentTimetable.name}</h2>
-                    <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "0.9rem" }}>
-                      {currentTimetable.department} &nbsp;•&nbsp; Semester {currentTimetable.semester}
-                      {currentTimetable.section ? ` • Section ${currentTimetable.section}` : ""}
-                    </p>
+                  <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+                    <div>
+                      <h2 style={{ marginTop: 0, marginBottom: "0.25rem" }}>{currentTimetable.name}</h2>
+                      <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "0.9rem" }}>
+                        {currentTimetable.department} &nbsp;•&nbsp; Semester {currentTimetable.semester}
+                        {currentTimetable.section ? ` • Section ${currentTimetable.section}` : ""}
+                      </p>
+                    </div>
+                    {(userRole === "COORDINATOR" || userRole === "ADMIN") && (
+                      <div style={{ textAlign: "right" }}>
+                        <StatusBadge status={currentTimetable.status} />
+                        {currentTimetable.status === "REJECTED" && currentTimetable.rejectionReason && (
+                          <div style={{ 
+                            marginTop: "0.75rem", 
+                            padding: "0.75rem 1rem", 
+                            background: "rgba(239, 68, 68, 0.1)", 
+                            border: "1px solid rgba(239, 68, 68, 0.2)",
+                            borderRadius: "8px",
+                            color: "#ef4444",
+                            fontSize: "0.85rem",
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "0.6rem",
+                            maxWidth: "300px"
+                          }}>
+                            <FaInfoCircle style={{ marginTop: "2px", flexShrink: 0 }} />
+                            <div>
+                                <strong>Rejection Reason:</strong>
+                                <div style={{ opacity: 0.9, marginTop: "2px" }}>{currentTimetable.rejectionReason}</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Legend */}

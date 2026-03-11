@@ -12,6 +12,7 @@ import constraintRoutes from "./routes/constraint.routes.js";
 import calendarRoutes from "./routes/calendar.routes.js";
 import assignmentRoutes from "./routes/assignment.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
+import leaveRoutes from "./routes/leave.routes.js";
 
 dotenv.config();
 
@@ -30,5 +31,6 @@ app.use("/api/constraints", constraintRoutes);
 app.use("/api/calendar", calendarRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/leaves", leaveRoutes);
 
 export default app;
