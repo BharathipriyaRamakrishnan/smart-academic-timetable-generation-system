@@ -13,6 +13,7 @@ import calendarRoutes from "./routes/calendar.routes.js";
 import assignmentRoutes from "./routes/assignment.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import leaveRoutes from "./routes/leave.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 
 dotenv.config();
 
@@ -32,5 +33,6 @@ app.use("/api/calendar", calendarRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/leaves", leaveRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 export default app;

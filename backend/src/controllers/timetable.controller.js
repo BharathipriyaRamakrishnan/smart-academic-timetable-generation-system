@@ -1,4 +1,6 @@
 import Timetable from "../models/Timetable.js";
+import Notification from "../models/Notification.js";
+import User from "../models/User.js";
 import { generateSchedule } from "../services/scheduler.js";
 
 /* ─── GET /api/timetables ─────────────────────────────────────
@@ -27,6 +29,47 @@ export const getTimetables = async (req, res) => {
             .sort({ createdAt: -1 });
 
         res.status(200).json(timetables);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/* ─── PUT /api/timetables/:id  (admin or coordinator) ─────── */
+export const updateTimetable = async (req, res) => {
+    try {
+        const { schedule } = req.body;
+        const timetable = await Timetable.findById(req.params.id);
+        if (!timetable) return res.status(404).json({ message: "Timetable not found" });
+
+        // Coordinators can only update their own department's timetables
+        if (req.user.role === "COORDINATOR" && timetable.department !== req.user.department) {
+            return res.status(403).json({ message: "You can only edit timetables for your own department." });
+        }
+
+        timetable.schedule = schedule;
+        timetable.version = (timetable.version || 1) + 1;
+        
+        await timetable.save();
+        
+        // Create Notification for Admin
+        try {
+            const editor = await User.findById(req.user.id).select("name");
+            await Notification.create({
+                recipientRole: "ADMIN",
+                title: "Timetable Modified",
+                message: `The timetable "${timetable.name}" for ${timetable.department} was modified by ${editor?.name || "a user"}.`
+            });
+        } catch (e) {
+            console.error("Failed to create notification:", e);
+        }
+        
+        // Populate and return the updated timetable
+        const updatedTimetable = await Timetable.findById(req.params.id)
+            .populate({ path: "schedule.slots.subject", select: "name codes type" })
+            .populate({ path: "schedule.slots.faculty", select: "name department designation" })
+            .populate({ path: "schedule.slots.classroom", select: "name capacity type" });
+
+        res.status(200).json({ message: "Timetable updated successfully", data: updatedTimetable });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

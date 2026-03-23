@@ -41,8 +41,13 @@ export default function AdminDashboard() {
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
     const [toast, setToast] = useState(null);
+    const [notifications, setNotifications] = useState([]);
 
-    useEffect(() => { fetchStats(); fetchTimetables(); }, []);
+    useEffect(() => { 
+        fetchStats(); 
+        fetchTimetables(); 
+        fetchNotifications();
+    }, []);
 
     const getHeaders = () => {
         const token = localStorage.getItem("token");
@@ -83,6 +88,27 @@ export default function AdminDashboard() {
     const showToast = (message, type = "success") => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 3500);
+    };
+
+    const fetchNotifications = async () => {
+        try {
+            const res = await fetch("/api/notifications", { headers: getHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                setNotifications(data.filter(n => !n.isRead)); // show only unread
+            }
+        } catch (e) {
+            console.error("Notifications fetch error:", e);
+        }
+    };
+
+    const markNotificationRead = async (id) => {
+        try {
+            const res = await fetch(`/api/notifications/${id}/read`, { method: "PATCH", headers: getHeaders() });
+            if (res.ok) {
+                setNotifications(prev => prev.filter(n => n._id !== id));
+            }
+        } catch (e) { console.error("Mark read error:", e); }
     };
 
     // ── Approve ────────────────────────────────────────────────
@@ -208,6 +234,45 @@ export default function AdminDashboard() {
                                     {actionLoading ? "Rejecting…" : "Confirm Reject"}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Notifications Panel */}
+                {notifications.length > 0 && (
+                    <div style={{ marginBottom: "2rem" }}>
+                        <h2 style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>Recent Notifications</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                            {notifications.map(n => (
+                                <div key={n._id} className="glass-panel" style={{ 
+                                    padding: "1rem 1.5rem", 
+                                    display: "flex", 
+                                    justifyContent: "space-between", 
+                                    alignItems: "center",
+                                    borderLeft: "4px solid #10b981"
+                                }}>
+                                    <div>
+                                        <h4 style={{ margin: "0 0 0.25rem", color: "#e2e8f0" }}>{n.title}</h4>
+                                        <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-muted)" }}>{n.message}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => markNotificationRead(n._id)}
+                                        style={{
+                                            background: "rgba(255,255,255,0.05)",
+                                            border: "1px solid rgba(255,255,255,0.1)",
+                                            color: "var(--text-muted)",
+                                            padding: "0.4rem 0.8rem",
+                                            borderRadius: "6px",
+                                            cursor: "pointer",
+                                            fontSize: "0.8rem"
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+                                        onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                    >
+                                        Mark as Read
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}

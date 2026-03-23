@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../Components/Sidebar";
 import { FaHourglassHalf, FaCheckCircle, FaBan, FaCalendarAlt, FaInfoCircle } from "react-icons/fa";
+import * as XLSX from "xlsx";
 
 // ── Status badge config (mirrored from AdminDashboard) ─────────
 const STATUS_CONFIG = {
@@ -40,6 +41,16 @@ export default function Timetable() {
   const [selectedBatch, setSelectedBatch] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeBatch, setActiveBatch] = useState(null);
+
+  // Edit mode states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTimetable, setEditedTimetable] = useState(null);
+  const [showSlotModal, setShowSlotModal] = useState(false);
+  const [editingSlotData, setEditingSlotData] = useState(null);
+  
+  const [faculties, setFaculties] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [classrooms, setClassrooms] = useState([]);
 
   const userRole = localStorage.getItem("role");
   const userDepartment = localStorage.getItem("department");
@@ -137,8 +148,147 @@ export default function Timetable() {
     }
   };
 
+  const handleEditClick = async () => {
+    setIsEditing(true);
+    setEditedTimetable(JSON.parse(JSON.stringify(currentTimetable))); // deep clone
+    if (faculties.length === 0) fetchFaculties();
+    if (subjects.length === 0) fetchSubjects();
+    if (classrooms.length === 0) fetchClassrooms();
+  };
+  
+  const fetchFaculties = async () => {
+    try {
+        const res = await fetch("/api/faculty", { headers: { "Authorization": `Bearer ${token}` }});
+        const data = await res.json();
+        setFaculties(data.filter(f => f.department === userDepartment || userRole === "ADMIN"));
+    } catch(e) {}
+  };
+  const fetchSubjects = async () => {
+    try {
+        const res = await fetch("/api/subjects", { headers: { "Authorization": `Bearer ${token}` }});
+        const data = await res.json();
+        setSubjects(data);
+    } catch(e) {}
+  };
+  const fetchClassrooms = async () => {
+    try {
+        const res = await fetch("/api/classrooms", { headers: { "Authorization": `Bearer ${token}` }});
+        const data = await res.json();
+        setClassrooms(data);
+    } catch(e) {}
+  };
+
+  const saveTimetableChanges = async () => {
+    setLoading(true);
+    try {
+      const scheduleForApi = editedTimetable.schedule.map(d => ({
+        day: d.day,
+        slots: d.slots.map(s => ({
+          time: s.time,
+          type: s.type,
+          subject: s.subject?._id || s.subject || null,
+          faculty: s.faculty?._id || s.faculty || null,
+          classroom: s.classroom?._id || s.classroom || null
+        }))
+      }));
+
+      const res = await fetch(`/api/timetables/${editedTimetable._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ schedule: scheduleForApi })
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        setIsEditing(false);
+        setEditedTimetable(null);
+        fetchTimetables();
+        alert("Timetable updated successfully!");
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (error) {
+      console.error("Error saving timetable:", error);
+      alert("Failed to save changes.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const currentTimetable = timetables.find(t => t._id === activeBatch);
+  const displayTimetable = isEditing ? editedTimetable : currentTimetable;
   const selectedBatchObj = batches.find(b => b._id === selectedBatch);
+
+  const exportToExcel = () => {
+    if (!currentTimetable) return;
+
+    // Build a unified set of all time slots from all days
+    const allTimes = [];
+    const seenTimes = new Set();
+    currentTimetable.schedule.forEach(daySch => {
+      daySch.slots.forEach(slot => {
+        if (!seenTimes.has(slot.time)) {
+          seenTimes.add(slot.time);
+          allTimes.push(slot.time);
+        }
+      });
+    });
+    allTimes.sort();
+
+    const days = currentTimetable.schedule.map(d => d.day);
+
+    // Build lookup: day → time → slot
+    const slotMap = {};
+    currentTimetable.schedule.forEach(daySch => {
+      slotMap[daySch.day] = {};
+      daySch.slots.forEach(slot => {
+        slotMap[daySch.day][slot.time] = slot;
+      });
+    });
+
+    // Prepare data for Excel
+    const headerRow = ["Time", ...days];
+    const dataRows = allTimes.map(time => {
+      const row = [time];
+      days.forEach(day => {
+        const slot = slotMap[day]?.[time];
+        if (!slot) {
+          row.push("-");
+        } else if (slot.type === "Break" || slot.type === "Lunch") {
+          row.push(slot.type === "Lunch" ? "Lunch Break" : "Break");
+        } else if (slot.type === "Free") {
+          row.push("-");
+        } else if (slot.subject) {
+          const subjectName = slot.subject.name || "";
+          const subjectCode = slot.subject.codes?.[0] || "";
+          const faculty = slot.faculty?.name || "";
+          const classroom = slot.classroom?.name || "";
+          let cellText = `${subjectName}`;
+          if (subjectCode) cellText += `\n(${subjectCode})`;
+          if (faculty) cellText += `\n${faculty}`;
+          if (classroom) cellText += `\n${classroom}`;
+          row.push(cellText);
+        } else {
+          row.push("-");
+        }
+      });
+      return row;
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
+    
+    // Set some column widths
+    const colWidths = [{ wch: 15 }]; // Time column
+    days.forEach(() => colWidths.push({ wch: 25 }));
+    worksheet["!cols"] = colWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Timetable");
+
+    // Generate filename
+    const filename = `${currentTimetable.name}_${currentTimetable.department || "Dept"}.xlsx`.replace(/[^a-z0-9_.-]/gi, '_');
+    XLSX.writeFile(workbook, filename);
+  };
 
   return (
     <div className="app-container">
@@ -300,11 +450,11 @@ export default function Timetable() {
             </div>
 
             {/* Timetable Grid */}
-            {currentTimetable && (() => {
+            {displayTimetable && (() => {
               // Build a unified set of all time slots from all days
               const allTimes = [];
               const seenTimes = new Set();
-              currentTimetable.schedule.forEach(daySch => {
+              displayTimetable.schedule.forEach(daySch => {
                 daySch.slots.forEach(slot => {
                   if (!seenTimes.has(slot.time)) {
                     seenTimes.add(slot.time);
@@ -314,11 +464,11 @@ export default function Timetable() {
               });
               allTimes.sort();
 
-              const days = currentTimetable.schedule.map(d => d.day);
+              const days = displayTimetable.schedule.map(d => d.day);
 
               // Build lookup: day → time → slot
               const slotMap = {};
-              currentTimetable.schedule.forEach(daySch => {
+              displayTimetable.schedule.forEach(daySch => {
                 slotMap[daySch.day] = {};
                 daySch.slots.forEach(slot => {
                   slotMap[daySch.day][slot.time] = slot;
@@ -344,32 +494,101 @@ export default function Timetable() {
                         {currentTimetable.section ? ` • Section ${currentTimetable.section}` : ""}
                       </p>
                     </div>
-                    {(userRole === "COORDINATOR" || userRole === "ADMIN") && (
-                      <div style={{ textAlign: "right" }}>
-                        <StatusBadge status={currentTimetable.status} />
-                        {currentTimetable.status === "REJECTED" && currentTimetable.rejectionReason && (
-                          <div style={{ 
-                            marginTop: "0.75rem", 
-                            padding: "0.75rem 1rem", 
-                            background: "rgba(239, 68, 68, 0.1)", 
-                            border: "1px solid rgba(239, 68, 68, 0.2)",
-                            borderRadius: "8px",
-                            color: "#ef4444",
-                            fontSize: "0.85rem",
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: "0.6rem",
-                            maxWidth: "300px"
-                          }}>
-                            <FaInfoCircle style={{ marginTop: "2px", flexShrink: 0 }} />
-                            <div>
-                                <strong>Rejection Reason:</strong>
-                                <div style={{ opacity: 0.9, marginTop: "2px" }}>{currentTimetable.rejectionReason}</div>
-                            </div>
-                          </div>
+                    <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                        {displayTimetable.status === "APPROVED" && !isEditing && (
+                          <button
+                            onClick={exportToExcel}
+                            style={{
+                              padding: "0.4rem 0.8rem",
+                              borderRadius: "20px",
+                              fontSize: "0.8rem",
+                              fontWeight: 600,
+                              color: "#10b981",
+                              background: "rgba(16,185,129,0.12)",
+                              border: "1px solid rgba(16,185,129,0.4)",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.4rem",
+                              transition: "all 0.2s"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(16,185,129,0.2)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "rgba(16,185,129,0.12)"}
+                            title="Export to Excel"
+                          >
+                            ⬇ Export
+                          </button>
+                        )}
+                        {(userRole === "COORDINATOR" || userRole === "ADMIN") && !isEditing && (
+                          <button
+                            onClick={handleEditClick}
+                            style={{
+                              padding: "0.4rem 0.8rem",
+                              borderRadius: "20px",
+                              fontSize: "0.8rem",
+                              fontWeight: 600,
+                              color: "var(--primary)",
+                              background: "var(--glass-border)",
+                              border: "1px solid rgba(79,70,229,0.4)",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.4rem",
+                              transition: "all 0.2s"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(79,70,229,0.1)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "var(--glass-border)"}
+                            title="Edit Timetable"
+                          >
+                            ✏ Edit
+                          </button>
+                        )}
+                        {isEditing && (
+                           <>
+                             <button
+                               onClick={() => {setIsEditing(false); setEditedTimetable(null);}}
+                               className="btn-secondary"
+                               style={{ padding: "0.4rem 0.8rem", fontSize: "0.8rem" }}
+                             >
+                               Cancel
+                             </button>
+                             <button
+                               onClick={saveTimetableChanges}
+                               className="btn-primary"
+                               style={{ padding: "0.4rem 0.8rem", fontSize: "0.8rem" }}
+                               disabled={loading}
+                             >
+                               {loading ? "Saving..." : "💾 Save Changes"}
+                             </button>
+                           </>
+                        )}
+                        {(userRole === "COORDINATOR" || userRole === "ADMIN") && !isEditing && (
+                          <StatusBadge status={displayTimetable.status} />
                         )}
                       </div>
-                    )}
+                      {(userRole === "COORDINATOR" || userRole === "ADMIN") && displayTimetable.status === "REJECTED" && displayTimetable.rejectionReason && (
+                        <div style={{ 
+                          marginTop: "0.75rem", 
+                          padding: "0.75rem 1rem", 
+                          background: "rgba(239, 68, 68, 0.1)", 
+                          border: "1px solid rgba(239, 68, 68, 0.2)",
+                          borderRadius: "8px",
+                          color: "#ef4444",
+                          fontSize: "0.85rem",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: "0.6rem",
+                          maxWidth: "300px"
+                        }}>
+                          <FaInfoCircle style={{ marginTop: "2px", flexShrink: 0 }} />
+                          <div>
+                              <strong>Rejection Reason:</strong>
+                              <div style={{ opacity: 0.9, marginTop: "2px" }}>{currentTimetable.rejectionReason}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Legend */}
@@ -440,7 +659,18 @@ export default function Timetable() {
                               const colors = cellColor(slot);
                               return (
                                 <td key={day} style={{ padding: "2px" }}>
-                                  <div style={{
+                                  <div
+                                    onClick={() => {
+                                      if (isEditing) {
+                                        setEditingSlotData({
+                                          day,
+                                          time,
+                                          slot: JSON.parse(JSON.stringify(slot || { type: "Free", time }))
+                                        });
+                                        setShowSlotModal(true);
+                                      }
+                                    }}
+                                    style={{
                                     background: colors.bg,
                                     border: `1px solid ${colors.border}`,
                                     borderRadius: "6px",
@@ -449,7 +679,8 @@ export default function Timetable() {
                                     display: "flex",
                                     flexDirection: "column",
                                     justifyContent: "center",
-                                    gap: "2px"
+                                    gap: "2px",
+                                    cursor: isEditing ? "pointer" : "default"
                                   }}>
                                     {isBreak ? (
                                       <span style={{ fontSize: "0.75rem", color: "var(--secondary)", fontWeight: 600, textAlign: "center" }}>
@@ -491,6 +722,111 @@ export default function Timetable() {
                 </div>
               );
             })()}
+          </div>
+        )}
+
+        {/* Edit Slot Modal */}
+        {showSlotModal && editingSlotData && (
+          <div style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0, 
+            background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000
+          }}>
+            <div className="glass-panel" style={{ padding: "2.5rem", width: "450px", maxWidth: "90%" }}>
+              <h3 style={{ marginTop: 0, marginBottom: "1.5rem" }}>Edit Slot: {editingSlotData.day} {editingSlotData.time}</h3>
+              
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--text-muted)", fontWeight: 600 }}>Type</label>
+                <select 
+                  className="input-field" 
+                  value={editingSlotData.slot.type || "Free"}
+                  onChange={e => setEditingSlotData({...editingSlotData, slot: {...editingSlotData.slot, type: e.target.value}})}
+                  style={{ width: "100%", margin: 0 }}
+                >
+                  <option value="Lecture">Lecture</option>
+                  <option value="Lab">Lab</option>
+                  <option value="Break">Break</option>
+                  <option value="Lunch">Lunch</option>
+                  <option value="Free">Free</option>
+                </select>
+              </div>
+
+              {(editingSlotData.slot.type === "Lecture" || editingSlotData.slot.type === "Lab") && (
+                <>
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--text-muted)", fontWeight: 600 }}>Subject</label>
+                    <select 
+                      className="input-field" 
+                      value={editingSlotData.slot.subject?._id || editingSlotData.slot.subject || ""}
+                      onChange={e => {
+                        const sub = subjects.find(s => s._id === e.target.value);
+                        setEditingSlotData({...editingSlotData, slot: {...editingSlotData.slot, subject: sub || null}});
+                      }}
+                      style={{ width: "100%", margin: 0 }}
+                    >
+                      <option value="">-- Select Subject --</option>
+                      {subjects.map(s => <option key={s._id} value={s._id}>{s.name} ({s.codes?.[0]})</option>)}
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--text-muted)", fontWeight: 600 }}>Faculty</label>
+                    <select 
+                      className="input-field" 
+                      value={editingSlotData.slot.faculty?._id || editingSlotData.slot.faculty || ""}
+                      onChange={e => {
+                        const fac = faculties.find(f => f._id === e.target.value);
+                        setEditingSlotData({...editingSlotData, slot: {...editingSlotData.slot, faculty: fac || null}});
+                      }}
+                      style={{ width: "100%", margin: 0 }}
+                    >
+                      <option value="">-- Select Faculty --</option>
+                      {faculties.map(f => <option key={f._id} value={f._id}>{f.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--text-muted)", fontWeight: 600 }}>Classroom</label>
+                    <select 
+                      className="input-field" 
+                      value={editingSlotData.slot.classroom?._id || editingSlotData.slot.classroom || ""}
+                      onChange={e => {
+                        const room = classrooms.find(c => c._id === e.target.value);
+                        setEditingSlotData({...editingSlotData, slot: {...editingSlotData.slot, classroom: room || null}});
+                      }}
+                      style={{ width: "100%", margin: 0 }}
+                    >
+                      <option value="">-- Select Classroom --</option>
+                      {classrooms.map(c => <option key={c._id} value={c._id}>{c.name} ({c.capacity})</option>)}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "2rem" }}>
+                <button className="btn-secondary" onClick={() => setShowSlotModal(false)} style={{ padding: "0.6rem 1.2rem" }}>Cancel</button>
+                <button className="btn-primary" onClick={() => {
+                  // Save slot back to editedTimetable
+                  const updatedData = { ...editedTimetable };
+                  const dayObj = updatedData.schedule.find(d => d.day === editingSlotData.day);
+                  if (dayObj) {
+                    const slotIndex = dayObj.slots.findIndex(s => s.time === editingSlotData.time);
+                    if (slotIndex >= 0) {
+                      dayObj.slots[slotIndex] = editingSlotData.slot;
+                    } else {
+                      dayObj.slots.push(editingSlotData.slot);
+                    }
+                  } else {
+                    updatedData.schedule.push({ day: editingSlotData.day, slots: [editingSlotData.slot] });
+                  }
+                  
+                  // Sort slots by time (simple localeCompare covers HH:MM nicely)
+                  if (dayObj) {
+                    dayObj.slots.sort((a,b) => a.time.localeCompare(b.time));
+                  }
+                  
+                  setEditedTimetable(updatedData);
+                  setShowSlotModal(false);
+                }} style={{ padding: "0.6rem 1.2rem" }}>Confirm</button>
+              </div>
+            </div>
           </div>
         )}
       </main>
