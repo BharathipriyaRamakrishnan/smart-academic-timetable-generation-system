@@ -564,12 +564,29 @@ export const generateSchedule = async ({ batchId, department, generatedBy } = {}
 
                     let placed = false;
 
-                    // Shuffle a fresh copy of subjects each time to avoid bias
-                    const candidates = shuffle([...lectureSubjects]);
+                    // Prioritize subjects that haven't met their weekly requirement yet
+                    const candidates = shuffle([...lectureSubjects]).sort((a, b) => {
+                        const aSid = a._id.toString();
+                        const bSid = b._id.toString();
+                        const aRemaining = (a.lecturesPerWeek || 3) - (batchWeeklyCount[aSid] || 0);
+                        const bRemaining = (b.lecturesPerWeek || 3) - (batchWeeklyCount[bSid] || 0);
+                        return bRemaining - aRemaining; // Higher remaining first
+                    });
+
                     for (const subject of candidates) {
                         const sid = subject._id.toString();
-                        // STRICT REPEAT LIMIT: avoid more than twice a day
+                        // 1. STRICT REPEAT LIMIT: avoid more than twice a day
                         if ((subjectDayCount[sid]?.[day] || 0) >= maxSubjectRepeatDay) continue;
+
+                        // 2. Weekly Cap Check (optional, but good for "satisfies prescribed credit hours")
+                        // If the user wants no free hours, we allow exceeding the weekly cap 
+                        // ONLY if all subjects have met their quota.
+                        const isUnderQuota = (batchWeeklyCount[sid] || 0) < (subject.lecturesPerWeek || 3);
+                        // If we have subjects under quota, DON'T pick this one if it's over quota
+                        if (!isUnderQuota && candidates.some(c => (batchWeeklyCount[c._id.toString()] || 0) < (c.lecturesPerWeek || 3))) {
+                             // There are others that need slots more than me
+                             continue;
+                        }
 
                         // Get ANY faculty who is free at this slot (ignore weekly load limits)
                         const pool = getFacultyPool(subject);
