@@ -13,10 +13,44 @@ import Settings from "./Pages/Settings.jsx";
 import CoordinatorDashboard from "./Pages/CoordinatorDashboard.jsx";
 import Coordinators from "./Pages/Coordinators.jsx";
 import ProtectedRoute from './Components/ProtectedRoute.jsx';
+import { useTheme } from "./context/ThemeContext.jsx";
+import { FaSun, FaMoon } from "react-icons/fa";
+
+function ThemeToggleButton() {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <button
+      onClick={toggleTheme}
+      style={{
+        position: 'fixed',
+        top: '1.25rem',
+        right: '1.5rem',
+        zIndex: 9999,
+        background: 'var(--glass-bg)',
+        border: '1px solid var(--glass-border)',
+        color: 'var(--text-main)',
+        padding: '0.5rem 0.85rem',
+        borderRadius: '20px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.4rem',
+        fontSize: '0.85rem',
+        fontWeight: '500',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        transition: 'all 0.2s ease'
+      }}
+      title="Toggle Theme"
+    >
+      {theme === 'dark' ? <><FaSun size={14} color="#fcd34d" /> Light Mode</> : <><FaMoon size={14} color="#818cf8" /> Dark Mode</>}
+    </button>
+  );
+}
 
 function App() {
   return (
     <>
+      <ThemeToggleButton />
       <Routes>
         <Route path="/" element={<Login />} />
 

@@ -5,7 +5,6 @@ import { useTheme } from "../context/ThemeContext.jsx";
 export default function Sidebar() {
   const navigate = useNavigate();
   const userRole = localStorage.getItem("role");
-  const { theme, toggleTheme } = useTheme();
 
   return (
     <aside className="sidebar">
@@ -34,9 +33,6 @@ export default function Sidebar() {
           </>
         )}
         <button onClick={() => navigate("/timetable")}><FaClock /> Timetables</button>
-        <button onClick={toggleTheme} style={{ marginTop: "auto" }}>
-          {theme === 'dark' ? <><FaSun /> Light Mode</> : <><FaMoon /> Dark Mode</>}
-        </button>
         <button
           onClick={() => {
             localStorage.clear();

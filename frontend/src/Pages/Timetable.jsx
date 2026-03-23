@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import Sidebar from "../Components/Sidebar";
 import { FaHourglassHalf, FaCheckCircle, FaBan, FaCalendarAlt, FaInfoCircle } from "react-icons/fa";
 import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // ── Status badge config (mirrored from AdminDashboard) ─────────
 const STATUS_CONFIG = {
@@ -290,6 +292,84 @@ export default function Timetable() {
     XLSX.writeFile(workbook, filename);
   };
 
+  const exportToPDF = () => {
+    if (!currentTimetable) return;
+
+    const doc = new jsPDF("landscape", "pt", "a4");
+
+    // Build a unified set of all time slots from all days
+    const allTimes = [];
+    const seenTimes = new Set();
+    currentTimetable.schedule.forEach(daySch => {
+      daySch.slots.forEach(slot => {
+        if (!seenTimes.has(slot.time)) {
+          seenTimes.add(slot.time);
+          allTimes.push(slot.time);
+        }
+      });
+    });
+    allTimes.sort();
+
+    const days = currentTimetable.schedule.map(d => d.day);
+
+    // Build lookup: day → time → slot
+    const slotMap = {};
+    currentTimetable.schedule.forEach(daySch => {
+      slotMap[daySch.day] = {};
+      daySch.slots.forEach(slot => {
+        slotMap[daySch.day][slot.time] = slot;
+      });
+    });
+
+    const headerRow = ["Time", ...days];
+    const dataRows = allTimes.map(time => {
+      const row = [time];
+      days.forEach(day => {
+        const slot = slotMap[day]?.[time];
+        if (!slot) {
+          row.push("-");
+        } else if (slot.type === "Break" || slot.type === "Lunch") {
+          row.push(slot.type === "Lunch" ? "Lunch Break" : "Break");
+        } else if (slot.type === "Free") {
+          row.push("-");
+        } else if (slot.subject) {
+          const subjectName = slot.subject.name || "";
+          const subjectCode = slot.subject.codes?.[0] || "";
+          const faculty = slot.faculty?.name || "";
+          const classroom = slot.classroom?.name || "";
+          let cellText = `${subjectName}`;
+          if (subjectCode) cellText += `\n(${subjectCode})`;
+          if (faculty) cellText += `\n${faculty}`;
+          if (classroom) cellText += `\n${classroom}`;
+          row.push(cellText);
+        } else {
+          row.push("-");
+        }
+      });
+      return row;
+    });
+
+    // Generate filename
+    const filename = `${currentTimetable.name}_${currentTimetable.department || "Dept"}.pdf`.replace(/[^a-z0-9_.-]/gi, '_');
+
+    doc.setFontSize(16);
+    doc.text(`${currentTimetable.name} - ${currentTimetable.department || "Department"}`, 40, 40);
+    
+    autoTable(doc, {
+      head: [headerRow],
+      body: dataRows,
+      startY: 55,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 6, halign: 'center', valign: 'middle' },
+      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 70, fontStyle: 'bold', fillColor: [248, 250, 252] }
+      }
+    });
+
+    doc.save(filename);
+  };
+
   return (
     <div className="app-container">
       <Sidebar />
@@ -497,28 +577,52 @@ export default function Timetable() {
                     <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                       <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                         {displayTimetable.status === "APPROVED" && !isEditing && (
-                          <button
-                            onClick={exportToExcel}
-                            style={{
-                              padding: "0.4rem 0.8rem",
-                              borderRadius: "20px",
-                              fontSize: "0.8rem",
-                              fontWeight: 600,
-                              color: "#10b981",
-                              background: "rgba(16,185,129,0.12)",
-                              border: "1px solid rgba(16,185,129,0.4)",
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "0.4rem",
-                              transition: "all 0.2s"
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = "rgba(16,185,129,0.2)"}
-                            onMouseLeave={e => e.currentTarget.style.background = "rgba(16,185,129,0.12)"}
-                            title="Export to Excel"
-                          >
-                            ⬇ Export
-                          </button>
+                          <div style={{ display: "flex", gap: "0.5rem" }}>
+                            <button
+                              onClick={exportToExcel}
+                              style={{
+                                padding: "0.4rem 0.8rem",
+                                borderRadius: "20px",
+                                fontSize: "0.8rem",
+                                fontWeight: 600,
+                                color: "#10b981",
+                                background: "rgba(16,185,129,0.12)",
+                                border: "1px solid rgba(16,185,129,0.4)",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.4rem",
+                                transition: "all 0.2s"
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = "rgba(16,185,129,0.2)"}
+                              onMouseLeave={e => e.currentTarget.style.background = "rgba(16,185,129,0.12)"}
+                              title="Export to Excel"
+                            >
+                              ⬇ Excel
+                            </button>
+                            <button
+                              onClick={exportToPDF}
+                              style={{
+                                padding: "0.4rem 0.8rem",
+                                borderRadius: "20px",
+                                fontSize: "0.8rem",
+                                fontWeight: 600,
+                                color: "#ef4444",
+                                background: "rgba(239,68,68,0.12)",
+                                border: "1px solid rgba(239,68,68,0.4)",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.4rem",
+                                transition: "all 0.2s"
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.2)"}
+                              onMouseLeave={e => e.currentTarget.style.background = "rgba(239,68,68,0.12)"}
+                              title="Export to PDF"
+                            >
+                              ⬇ PDF
+                            </button>
+                          </div>
                         )}
                         {(userRole === "COORDINATOR" || userRole === "ADMIN") && !isEditing && (
                           <button
