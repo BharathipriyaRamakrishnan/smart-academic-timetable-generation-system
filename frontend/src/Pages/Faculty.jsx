@@ -14,6 +14,7 @@ export default function Faculty() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [departments, setDepartments] = useState([]);
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     fetchFaculty();
@@ -65,16 +66,20 @@ export default function Faculty() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const method = editingId ? "PUT" : "POST";
+    const url = editingId ? `/api/faculty/${editingId}` : "/api/faculty";
+    
     try {
-      const res = await fetch("/api/faculty", {
-        method: "POST",
+      const res = await fetch(url, {
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
       if (res.ok) {
         setFormData({ name: "", email: "", department: "", designation: "", subjects: [] });
+        setEditingId(null);
         fetchFaculty();
-        alert("Faculty added successfully!");
+        alert(editingId ? "Faculty updated successfully!" : "Faculty added successfully!");
       } else {
         const errorData = await res.json();
         alert(`Error: ${errorData.message}`);
@@ -89,10 +94,27 @@ export default function Faculty() {
     if (!confirm("Are you sure?")) return;
     try {
       await fetch(`/api/faculty/${id}`, { method: "DELETE" });
+      if (editingId === id) {
+        setEditingId(null);
+        setFormData({ name: "", email: "", department: "", designation: "", subjects: [] });
+      }
       fetchFaculty();
     } catch (error) {
       console.error("Error deleting faculty:", error);
     }
+  };
+
+  const handleEdit = (f) => {
+    setEditingId(f._id);
+    setFormData({
+      name: f.name,
+      email: f.email,
+      department: f.department,
+      designation: f.designation || "",
+      subjects: f.subjects?.map(s => s._id) || []
+    });
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -107,7 +129,7 @@ export default function Faculty() {
 
           {/* Form */}
           <div className="glass-panel" style={{ padding: "1.5rem", height: "fit-content" }}>
-            <h2 style={{ marginTop: 0 }}>Add Faculty</h2>
+            <h2 style={{ marginTop: 0 }}>{editingId ? "Edit Faculty" : "Add Faculty"}</h2>
             <form onSubmit={handleSubmit}>
               <input
                 className="input-field"
@@ -161,9 +183,24 @@ export default function Faculty() {
                   </option>
                 ))}
               </select>
-              <button type="submit" className="btn-primary" style={{ width: "100%" }}>
-                Add Faculty
-              </button>
+              <div style={{ display: "flex", gap: "1rem" }}>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>
+                  {editingId ? "Update Faculty" : "Add Faculty"}
+                </button>
+                {editingId && (
+                  <button 
+                    type="button" 
+                    className="btn-secondary" 
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      setEditingId(null);
+                      setFormData({ name: "", email: "", department: "", designation: "", subjects: [] });
+                    }}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </form>
           </div>
 
@@ -207,12 +244,22 @@ export default function Faculty() {
                             Teaches: {f.subjects?.map(s => s.name).join(", ") || "None"}
                           </small>
                         </div>
-                        <button
-                          onClick={() => handleDelete(f._id)}
-                          style={{ color: "#ef4444", background: "none", fontSize: "1.2rem" }}
-                        >
-                          &times;
-                        </button>
+                        <div>
+                          <button
+                            onClick={() => handleEdit(f)}
+                            style={{ color: "var(--primary-light)", background: "none", fontSize: "1.2rem", marginRight: "1rem" }}
+                            title="Edit"
+                          >
+                            ✎
+                          </button>
+                          <button
+                            onClick={() => handleDelete(f._id)}
+                            style={{ color: "#ef4444", background: "none", fontSize: "1.2rem" }}
+                            title="Delete"
+                          >
+                            &times;
+                          </button>
+                        </div>
                       </div>
                     ))}
                 </div>

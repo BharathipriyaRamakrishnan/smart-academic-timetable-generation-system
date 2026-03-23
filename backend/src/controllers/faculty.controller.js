@@ -47,8 +47,21 @@ export const getFacultyById = async (req, res) => {
 
 export const updateFaculty = async (req, res) => {
     try {
+        const oldFaculty = await Faculty.findById(req.params.id);
+        if (!oldFaculty) return res.status(404).json({ message: "Faculty not found" });
+
         const faculty = await Faculty.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        if (!faculty) return res.status(404).json({ message: "Faculty not found" });
+        
+        // Sync with User account
+        const updateData = {
+            name: req.body.name,
+            email: req.body.email,
+            department: req.body.department
+        };
+        
+        await User.findOneAndUpdate({ email: oldFaculty.email }, updateData);
+        console.log("Updated User account for faculty:", oldFaculty.email);
+
         res.json(faculty);
     } catch (error) {
         res.status(400).json({ message: error.message });
