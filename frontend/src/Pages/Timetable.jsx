@@ -116,6 +116,27 @@ export default function Timetable() {
     }
   };
 
+  const deleteTimetable = async (id, name) => {
+    if (!window.confirm(`Delete timetable "${name}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/timetables/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        // If deleted timetable was active, switch to next available
+        if (activeBatch === id) setActiveBatch(null);
+        fetchTimetables();
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (error) {
+      console.error("Error deleting timetable:", error);
+      alert("Failed to delete timetable.");
+    }
+  };
+
   const currentTimetable = timetables.find(t => t._id === activeBatch);
   const selectedBatchObj = batches.find(b => b._id === selectedBatch);
 
@@ -217,37 +238,64 @@ export default function Timetable() {
             {/* Batch Selector Tabs */}
             <div style={{ display: "flex", gap: "0.75rem", overflowX: "auto", paddingBottom: "0.5rem", flexWrap: "wrap" }}>
               {timetables.map(t => (
-                <button
-                  key={t._id}
-                  onClick={() => setActiveBatch(t._id)}
-                  style={{
-                    background: activeBatch === t._id ? "var(--primary)" : "rgba(255,255,255,0.08)",
-                    color: "white",
-                    padding: "0.5rem 1.2rem",
-                    borderRadius: "20px",
-                    border: activeBatch === t._id ? "none" : "1px solid var(--glass-border)",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    fontSize: "0.875rem",
-                    transition: "all 0.2s",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem"
-                  }}
-                >
-                  {t.name} {t.semester ? `· Sem ${t.semester}` : ""}
+                <div key={t._id} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <button
+                    onClick={() => setActiveBatch(t._id)}
+                    style={{
+                      background: activeBatch === t._id ? "var(--primary)" : "var(--glass-border)",
+                      color: activeBatch === t._id ? "white" : "var(--text-main)",
+                      padding: "0.5rem 1.2rem",
+                      borderRadius: "20px",
+                      border: activeBatch === t._id ? "none" : "1px solid var(--glass-border)",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      fontSize: "0.875rem",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem"
+                    }}
+                  >
+                    {t.name} {t.semester ? `· Sem ${t.semester}` : ""}
+                    {(userRole === "COORDINATOR" || userRole === "ADMIN") && (
+                      <span style={{ 
+                        fontSize: "10px", 
+                        opacity: 0.8,
+                        background: "rgba(0,0,0,0.2)",
+                        padding: "2px 6px",
+                        borderRadius: "10px"
+                      }}>
+                        {t.status === "APPROVED" ? "✓" : t.status === "REJECTED" ? "×" : "..."}
+                      </span>
+                    )}
+                  </button>
+                  {/* Delete button — coordinators & admins only */}
                   {(userRole === "COORDINATOR" || userRole === "ADMIN") && (
-                    <span style={{ 
-                      fontSize: "10px", 
-                      opacity: 0.8,
-                      background: "rgba(0,0,0,0.2)",
-                      padding: "2px 6px",
-                      borderRadius: "10px"
-                    }}>
-                      {t.status === "APPROVED" ? "✓" : t.status === "REJECTED" ? "×" : "..."}
-                    </span>
+                    <button
+                      onClick={() => deleteTimetable(t._id, t.name)}
+                      title="Delete timetable"
+                      style={{
+                        background: "rgba(239,68,68,0.12)",
+                        border: "1px solid rgba(239,68,68,0.35)",
+                        color: "#f87171",
+                        borderRadius: "50%",
+                        width: "26px",
+                        height: "26px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        fontSize: "0.75rem",
+                        flexShrink: 0,
+                        transition: "background 0.2s"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.3)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "rgba(239,68,68,0.12)"}
+                    >
+                      🗑
+                    </button>
                   )}
-                </button>
+                </div>
               ))}
             </div>
 
@@ -278,9 +326,9 @@ export default function Timetable() {
               });
 
               const cellColor = (slot) => {
-                if (!slot) return { bg: "rgba(255,255,255,0.02)", border: "rgba(255,255,255,0.05)" };
+                if (!slot) return { bg: "transparent", border: "var(--glass-border)" };
                 if (slot.type === "Break" || slot.type === "Lunch") return { bg: "rgba(234,179,8,0.15)", border: "rgba(234,179,8,0.3)" };
-                if (slot.type === "Free") return { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)" };
+                if (slot.type === "Free") return { bg: "transparent", border: "var(--glass-border)" };
                 if (slot.type === "Lab") return { bg: "rgba(16,185,129,0.15)", border: "rgba(16,185,129,0.3)" };
                 return { bg: "rgba(79,70,229,0.18)", border: "rgba(79,70,229,0.35)" };
               };
@@ -330,7 +378,7 @@ export default function Timetable() {
                       { label: "Lecture",      bg: "rgba(79,70,229,0.18)",    border: "rgba(79,70,229,0.35)" },
                       { label: "Lab",          bg: "rgba(16,185,129,0.15)",   border: "rgba(16,185,129,0.3)" },
                       { label: "Break/Lunch",  bg: "rgba(234,179,8,0.15)",    border: "rgba(234,179,8,0.3)" },
-                      { label: "Study Period", bg: "rgba(255,255,255,0.03)",  border: "rgba(255,255,255,0.08)" },
+
                     ].map(({ label, bg, border }) => (
                       <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.78rem", color: "var(--text-muted)" }}>
                         <div style={{ width: 14, height: 14, background: bg, border: `1px solid ${border}`, borderRadius: 3 }} />
@@ -347,7 +395,7 @@ export default function Timetable() {
                           <th style={{
                             padding: "0.6rem 1rem",
                             textAlign: "left",
-                            background: "rgba(255,255,255,0.05)",
+                            background: "var(--glass-border)",
                             borderRadius: "6px",
                             fontSize: "0.8rem",
                             color: "var(--text-muted)",
@@ -363,7 +411,7 @@ export default function Timetable() {
                               borderRadius: "6px",
                               fontSize: "0.85rem",
                               fontWeight: 600,
-                              color: "#a5b4fc",
+                              color: "var(--primary)",
                               whiteSpace: "nowrap"
                             }}>
                               {day}
@@ -379,7 +427,7 @@ export default function Timetable() {
                               fontSize: "0.78rem",
                               color: "var(--text-muted)",
                               whiteSpace: "nowrap",
-                              background: "rgba(255,255,255,0.03)",
+                              background: "var(--glass-border)",
                               borderRadius: "6px",
                               fontWeight: 500
                             }}>
@@ -404,34 +452,32 @@ export default function Timetable() {
                                     gap: "2px"
                                   }}>
                                     {isBreak ? (
-                                      <span style={{ fontSize: "0.75rem", color: "#fbbf24", fontWeight: 600, textAlign: "center" }}>
+                                      <span style={{ fontSize: "0.75rem", color: "var(--secondary)", fontWeight: 600, textAlign: "center" }}>
                                         {slot.type === "Lunch" ? "🍽" : "☕"} {slot.type === "Lunch" ? "Lunch Break" : "Break"}
                                       </span>
                                     ) : isFree ? (
-                                      <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.25)", textAlign: "center", fontStyle: "italic" }}>
-                                        📖 Study Period
-                                      </span>
+                                      <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", opacity: 0.5, textAlign: "center" }}>—</span>
                                     ) : slot?.subject ? (
                                       <>
-                                        <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#e2e8f0", lineHeight: 1.2 }}>
+                                        <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-main)", lineHeight: 1.2 }}>
                                           {slot.subject?.name || "—"}
                                         </div>
                                         {slot.subject?.codes?.[0] && (
-                                          <div style={{ fontSize: "0.68rem", color: "#a5b4fc", fontWeight: 500 }}>
+                                          <div style={{ fontSize: "0.68rem", color: "var(--primary)", fontWeight: 500 }}>
                                             {slot.subject.codes[0]}
                                           </div>
                                         )}
-                                        <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "2px" }}>
+                                        <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "2px" }}>
                                           👤 {slot.faculty?.name || "—"}
                                         </div>
                                         {slot.classroom?.name && (
-                                          <div style={{ fontSize: "0.68rem", color: "#64748b" }}>
+                                          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", opacity: 0.8 }}>
                                             🏛 {slot.classroom.name}
                                           </div>
                                         )}
                                       </>
                                     ) : (
-                                      <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.15)", textAlign: "center" }}>—</span>
+                                      <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", opacity: 0.5, textAlign: "center" }}>—</span>
                                     )}
                                   </div>
                                 </td>

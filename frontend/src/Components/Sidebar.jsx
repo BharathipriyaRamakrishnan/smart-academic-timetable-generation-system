@@ -1,9 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { FaHome, FaUsers, FaUserTie, FaChalkboardTeacher, FaSchool, FaClock, FaBook, FaSignOutAlt, FaCogs } from "react-icons/fa";
+import { FaHome, FaUsers, FaUserTie, FaChalkboardTeacher, FaSchool, FaClock, FaBook, FaSignOutAlt, FaCogs, FaSun, FaMoon } from "react-icons/fa";
+import { useTheme } from "../context/ThemeContext.jsx";
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const userRole = localStorage.getItem("role");
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <aside className="sidebar">
@@ -32,12 +34,15 @@ export default function Sidebar() {
           </>
         )}
         <button onClick={() => navigate("/timetable")}><FaClock /> Timetables</button>
+        <button onClick={toggleTheme} style={{ marginTop: "auto" }}>
+          {theme === 'dark' ? <><FaSun /> Light Mode</> : <><FaMoon /> Dark Mode</>}
+        </button>
         <button
           onClick={() => {
             localStorage.clear();
             navigate("/");
           }}
-          style={{ marginTop: "auto", background: "rgba(239, 68, 68, 0.1)", color: "#fca5a5" }}
+          style={{ background: "var(--logout-bg)", color: "#fca5a5", marginTop: "1rem" }}
         >
           <FaSignOutAlt /> Logout
         </button>

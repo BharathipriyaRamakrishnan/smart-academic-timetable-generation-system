@@ -32,11 +32,18 @@ export const getTimetables = async (req, res) => {
     }
 };
 
-/* ─── DELETE /api/timetables/:id  (admin only) ─────────────── */
+/* ─── DELETE /api/timetables/:id  (admin or coordinator) ───── */
 export const deleteTimetable = async (req, res) => {
     try {
-        const timetable = await Timetable.findByIdAndDelete(req.params.id);
+        const timetable = await Timetable.findById(req.params.id);
         if (!timetable) return res.status(404).json({ message: "Timetable not found" });
+
+        // Coordinators can only delete their own department's timetables
+        if (req.user.role === "COORDINATOR" && timetable.department !== req.user.department) {
+            return res.status(403).json({ message: "You can only delete timetables for your own department." });
+        }
+
+        await timetable.deleteOne();
         res.status(200).json({ message: "Timetable deleted successfully" });
     } catch (error) {
         res.status(500).json({ message: error.message });

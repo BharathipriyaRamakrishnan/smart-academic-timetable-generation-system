@@ -10,6 +10,32 @@
   --text-muted: #94a3b8;
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --radius: 12px;
+  --bg-gradient-start: #1e293b;
+  --input-bg: rgba(15, 23, 42, 0.6);
+  --logo-gradient-start: #fff;
+  --sidebar-bg: rgba(15, 23, 42, 0.9);
+  --btn-hover-bg: rgba(255, 255, 255, 0.03);
+  --btn-hover-border: rgba(255, 255, 255, 0.05);
+  --placeholder-color: rgba(255, 255, 255, 0.5);
+}
+
+:root[data-theme='light'] {
+  --primary: #4f46e5;
+  --secondary: #ec4899;
+  --accent: #8b5cf6;
+  --bg-dark: #f0f4f8;
+  --bg-darker: #d9e2ec;
+  --glass: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --text-main: #102a43;
+  --text-muted: #486581;
+  --bg-gradient-start: #ffffff;
+  --input-bg: rgba(240, 244, 248, 0.8);
+  --logo-gradient-start: #102a43;
+  --sidebar-bg: rgba(255, 255, 255, 0.9);
+  --btn-hover-bg: rgba(0, 0, 0, 0.05);
+  --btn-hover-border: rgba(0, 0, 0, 0.08);
+  --placeholder-color: rgba(16, 42, 67, 0.5);
 }
 
 body {
@@ -17,7 +43,7 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--bg-dark);
   color: var(--text-main);
-  background: radial-gradient(circle at top left, #1e293b, var(--bg-darker));
+  background: radial-gradient(circle at top left, var(--bg-gradient-start), var(--bg-darker));
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
@@ -58,14 +84,18 @@ button {
 }
 
 .input-field {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
-  color: white;
+  color: var(--text-main);
   padding: 0.75rem;
   border-radius: var(--radius);
   width: 100%;
   box-sizing: border-box;
   margin-bottom: 1rem;
+}
+
+.input-field::placeholder {
+  color: var(--placeholder-color);
 }
 
 .input-field:focus {
@@ -96,15 +126,16 @@ button {
 .page-title {
   font-size: 2rem;
   font-weight: 700;
-  background: linear-gradient(to right, #fff, #94a3b8);
+  background: linear-gradient(to right, var(--logo-gradient-start), var(--text-muted));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0;
 }
 /* Sidebar Styles */
 .sidebar {
   width: 280px;
-  background: rgba(15, 23, 42, 0.9);
+  background: var(--sidebar-bg);
   backdrop-filter: blur(16px);
   border-right: 1px solid var(--glass-border);
   display: flex;
@@ -118,8 +149,9 @@ button {
   font-weight: 800;
   margin-bottom: 3rem;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #fff, var(--text-muted));
+  background: linear-gradient(135deg, var(--logo-gradient-start), var(--text-muted));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   display: flex;
   align-items: center;
@@ -148,10 +180,10 @@ button {
 }
 
 .sidebar button:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--btn-hover-bg);
   color: var(--text-main);
   transform: translateX(4px);
-  border-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--btn-hover-border);
 }
 
 /* Active state simulation (can be improved with React Router NavLink) */

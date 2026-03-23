@@ -9,7 +9,7 @@ export const INSTITUTIONAL_PERIODS = [
     { start: "08:45", end: "09:35", type: "Class",  label: "Period 1" },
     { start: "09:35", end: "10:25", type: "Class",  label: "Period 2" },
     { start: "10:25", end: "10:40", type: "Break",  label: "Break" },
-    { start: "10:40", end: "11:35", type: "Free",   label: "Period 3 (Study)" },
+    { start: "10:40", end: "11:35", type: "Class",  label: "Period 3" },
     { start: "11:35", end: "12:20", type: "Class",  label: "Period 4" },
     { start: "12:20", end: "13:30", type: "Lunch",  label: "Lunch Break" },
     { start: "13:30", end: "14:10", type: "Class",  label: "Period 5" },
@@ -78,7 +78,7 @@ const settingsSchema = new mongoose.Schema({
     maxClassesPerDayFaculty: { type: Number, default: 4 },
 
     // Batch constraints
-    maxClassesPerDayBatch:   { type: Number, default: 6 },
+    maxClassesPerDayBatch:   { type: Number, default: 7 },
     maxSubjectRepeatPerDay:  { type: Number, default: 2 },
     maxContinuousClasses:    { type: Number, default: 3 },
 
@@ -109,12 +109,23 @@ settingsSchema.statics.getSettings = async function () {
         settings.fixedPeriods = INSTITUTIONAL_PERIODS;
         dirty = true;
     }
+
+    // Migration: convert stale 'Free' Period 3 to 'Class' so students
+    // are always assigned a real subject instead of a self-study slot.
+    const freeP3 = settings.fixedPeriods.find(
+        p => p.start === "10:40" && p.end === "11:35" && p.type === "Free"
+    );
+    if (freeP3) {
+        freeP3.type  = "Class";
+        freeP3.label = "Period 3";
+        dirty = true;
+    }
     if (!settings.maxClassesPerDayFaculty) {
         settings.maxClassesPerDayFaculty = 4;
         dirty = true;
     }
-    if (!settings.maxClassesPerDayBatch) {
-        settings.maxClassesPerDayBatch = 6;
+    if (!settings.maxClassesPerDayBatch || settings.maxClassesPerDayBatch < 7) {
+        settings.maxClassesPerDayBatch = 7;  // match 7 class slots per day
         dirty = true;
     }
     if (!settings.maxSubjectRepeatPerDay) {

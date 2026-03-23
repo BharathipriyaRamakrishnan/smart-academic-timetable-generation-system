@@ -205,9 +205,10 @@ export const generateSchedule = async ({ batchId, department, generatedBy } = {}
 
     const maxFacultyPerWeek   = settings.maxClassesPerWeek         || 18;
     const maxFacultyPerDay    = settings.maxClassesPerDayFaculty   || 4;
-    const maxBatchPerDay      = settings.maxClassesPerDayBatch     || 6;
     const maxSubjectRepeatDay = settings.maxSubjectRepeatPerDay    || 2;
     const labLen              = Math.max(1, settings.labMinDuration || 2);
+    // maxBatchPerDay is derived AFTER building TIME_SLOTS so it always
+    // matches the actual number of schedulable slots — never under-counts.
 
     const allDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const DAYS    = allDays.slice(0, settings.workingDays || 6);
@@ -215,8 +216,15 @@ export const generateSchedule = async ({ batchId, department, generatedBy } = {}
     const TIME_SLOTS  = buildTimeSlots(settings);
     const CLASS_SLOTS = TIME_SLOTS.filter(s => s.schedulable); // bookable positions
 
+    // Always match the cap to the actual number of class slots so no slot
+    // is left empty purely because of an outdated setting value.
+    const maxBatchPerDay = Math.max(
+        CLASS_SLOTS.length,
+        settings.maxClassesPerDayBatch || 6
+    );
+
     console.log(`[Scheduler] DAYS: ${DAYS.join(", ")}`);
-    console.log(`[Scheduler] Slots/day: ${TIME_SLOTS.length} total, ${CLASS_SLOTS.length} class slots`);
+    console.log(`[Scheduler] Slots/day: ${TIME_SLOTS.length} total, ${CLASS_SLOTS.length} class slots (maxBatchPerDay=${maxBatchPerDay})`);
     console.log(`[Scheduler] Total class slots/week: ${CLASS_SLOTS.length * DAYS.length}`);
 
     // ── 1. DB data ────────────────────────────────────────────────────────────
@@ -464,18 +472,15 @@ export const generateSchedule = async ({ batchId, department, generatedBy } = {}
         if (weightedPool.length > 0) {
             let poolIdx = 0;
 
+            // ── PASS 2A: fill with subject repeat cap enforced ────────────────
             for (const dayEntry of batchSchedule.schedule) {
                 const day = dayEntry.day;
                 for (let i = 0; i < TIME_SLOTS.length; i++) {
                     const slot = TIME_SLOTS[i];
                     if (!slot.schedulable) continue;
-                    // Already booked?
                     if (usedMap[batchId_str]?.[day]?.[slot.time]) continue;
-
-                    // Batch daily cap check
                     if ((batchDayCount[day] || 0) >= maxBatchPerDay) break;
 
-                    // Try subjects from the weighted pool until one fits
                     let placed = false;
                     let tried  = 0;
 
@@ -484,25 +489,21 @@ export const generateSchedule = async ({ batchId, department, generatedBy } = {}
                         poolIdx++;
                         tried++;
 
-                        const sid   = subject._id.toString();
-                        // Don't exceed repeat cap
+                        const sid = subject._id.toString();
                         if ((subjectDayCount[sid]?.[day] || 0) >= maxSubjectRepeatDay) continue;
 
                         const faculty = pickFaculty(subject, day, 1);
                         if (!faculty) continue;
 
-                        // Check faculty is free at this specific slot
                         const fid = faculty._id.toString();
                         if (usedMap[fid]?.[day]?.[slot.time]) continue;
 
-                        // Pick room
                         const room = lectureRooms.find(r => !usedMap[r._id.toString()]?.[day]?.[slot.time]);
                         if (!room) continue;
 
-                        // Book it
-                        markUsed(batchId_str,         day, slot.time);
-                        markUsed(fid,                  day, slot.time);
-                        markUsed(room._id.toString(),  day, slot.time);
+                        markUsed(batchId_str,        day, slot.time);
+                        markUsed(fid,                day, slot.time);
+                        markUsed(room._id.toString(),day, slot.time);
 
                         dayEntry.slots.push({
                             time:      slot.time,
@@ -516,6 +517,62 @@ export const generateSchedule = async ({ batchId, department, generatedBy } = {}
                         incBatchDay(day, 1);
                         incSubjectDay(sid, day);
                         placed = true;
+                    }
+                }
+            }
+
+            // ── PASS 2B: force-fill any still-empty schedulable slot ──────────
+            // Ignore repeat cap and batch daily cap — the ONLY requirement is
+            // that faculty and room are free at that specific time slot.
+            // This guarantees zero empty class periods for students.
+            for (const dayEntry of batchSchedule.schedule) {
+                const day = dayEntry.day;
+                for (let i = 0; i < TIME_SLOTS.length; i++) {
+                    const slot = TIME_SLOTS[i];
+                    if (!slot.schedulable) continue;
+                    if (usedMap[batchId_str]?.[day]?.[slot.time]) continue; // already filled
+
+                    let placed = false;
+
+                    // Shuffle a fresh copy of subjects each time to avoid bias
+                    const candidates = shuffle([...lectureSubjects]);
+                    for (const subject of candidates) {
+                        // Get ANY faculty who is free at this slot (ignore weekly load limits)
+                        const pool = getFacultyPool(subject);
+                        const faculty = pool.find(f => {
+                            const fid = f._id.toString();
+                            if (facultyLeaveMap[fid]?.has(day)) return false;
+                            return !usedMap[fid]?.[day]?.[slot.time];
+                        });
+                        if (!faculty) continue;
+
+                        const room = lectureRooms.find(r => !usedMap[r._id.toString()]?.[day]?.[slot.time]);
+                        if (!room) continue;
+
+                        const fid = faculty._id.toString();
+                        const sid = subject._id.toString();
+
+                        markUsed(batchId_str,        day, slot.time);
+                        markUsed(fid,                day, slot.time);
+                        markUsed(room._id.toString(),day, slot.time);
+
+                        dayEntry.slots.push({
+                            time:      slot.time,
+                            subject:   subject._id,
+                            faculty:   faculty._id,
+                            classroom: room._id,
+                            type:      "Lecture",
+                        });
+
+                        incFacultyLoad(fid, day, 1);
+                        incBatchDay(day, 1);
+                        incSubjectDay(sid, day);
+                        placed = true;
+                        break;
+                    }
+
+                    if (!placed) {
+                        console.warn(`  [Pass2B] Could not fill ${day} ${slot.time} — no free faculty or room available.`);
                     }
                 }
             }
