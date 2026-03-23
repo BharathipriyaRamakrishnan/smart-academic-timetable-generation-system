@@ -13,7 +13,7 @@ dotenv.config();
 
 // ── DATA DEFINITIONS ──────────────────────────────────────────────────────────
 
-const DEPARTMENTS = ["CSE", "IT", "ECE", "MECH"];
+const DEPARTMENTS = ["CSE", "IT", "ECE", "MECH", "CIVIL"];
 
 const subjectsData = [
     // CSE
@@ -118,62 +118,88 @@ const subjectsData = [
     { name: "Heat Transfer", codes: ["MECH-ME206"], credits: 4, type: "Core", departments: ["MECH"], semester: 4, lecturesPerWeek: 4 },
     { name: "Machine Design Lab", codes: ["MECH-ME205L"], credits: 2, type: "Lab", departments: ["MECH"], semester: 4, lecturesPerWeek: 1, labsPerWeek: 2 },
     { name: "CAD/CAM", codes: ["MECH-ME302E"], credits: 3, type: "Elective", departments: ["MECH"], semester: 5, lecturesPerWeek: 3 },
+    { name: "CAD/CAM", codes: ["MECH-ME302E"], credits: 3, type: "Elective", departments: ["MECH"], semester: 5, lecturesPerWeek: 3 },
     { name: "Robotics", codes: ["MECH-ME306E"], credits: 3, type: "Elective", departments: ["MECH"], semester: 6, lecturesPerWeek: 3 },
+
+    // CIVIL
+    { name: "Engineering Mathematics I", codes: ["CIV-MA101"], credits: 4, type: "Core", departments: ["CIVIL"], semester: 1, lecturesPerWeek: 4 },
+    { name: "Surveying", codes: ["CIV-CE101"], credits: 3, type: "Core", departments: ["CIVIL"], semester: 1, lecturesPerWeek: 3 },
+    { name: "Strength of Materials", codes: ["CIV-CE102"], credits: 3, type: "Core", departments: ["CIVIL"], semester: 1, lecturesPerWeek: 3 },
+    { name: "Building Materials", codes: ["CIV-CE103"], credits: 3, type: "Core", departments: ["CIVIL"], semester: 1, lecturesPerWeek: 3 },
+    { name: "Surveying Lab", codes: ["CIV-CE101L"], credits: 2, type: "Lab", departments: ["CIVIL"], semester: 1, lecturesPerWeek: 1, labsPerWeek: 2 },
+    { name: "Structural Analysis", codes: ["CIV-CE201"], credits: 4, type: "Core", departments: ["CIVIL"], semester: 3, lecturesPerWeek: 4 },
+    { name: "Geotechnical Engineering", codes: ["CIV-CE202"], credits: 4, type: "Core", departments: ["CIVIL"], semester: 3, lecturesPerWeek: 4 },
+    { name: "Concrete Technology", codes: ["CIV-CE203"], credits: 3, type: "Core", departments: ["CIVIL"], semester: 3, lecturesPerWeek: 3 },
 ];
 
-const classroomsData = [
-    { name: "Room-101", capacity: 65, type: "Lecture Hall", resources: ["Projector"] },
-    { name: "Room-102", capacity: 65, type: "Lecture Hall", resources: ["Projector"] },
-    { name: "Room-103", capacity: 60, type: "Lecture Hall", resources: ["Whiteboard"] },
-    { name: "Room-201", capacity: 65, type: "Lecture Hall", resources: ["Projector"] },
-    { name: "Room-202", capacity: 65, type: "Lecture Hall", resources: ["Smart Board"] },
-    { name: "Room-203", capacity: 60, type: "Lecture Hall", resources: ["Whiteboard"] },
-    { name: "Room-301", capacity: 70, type: "Lecture Hall", resources: ["Projector"] },
-    { name: "Room-302", capacity: 70, type: "Lecture Hall", resources: ["Projector"] },
-    { name: "Room-401", capacity: 65, type: "Lecture Hall", resources: ["Smart Board"] },
-    { name: "Room-402", capacity: 65, type: "Lecture Hall", resources: ["Projector"] },
-    { name: "Room-403", capacity: 60, type: "Lecture Hall", resources: ["Whiteboard"] },
-    { name: "Room-404", capacity: 60, type: "Lecture Hall", resources: ["Projector"] },
-    { name: "LH-A", capacity: 250, type: "Lecture Hall", resources: ["Projector", "AC"] },
-    { name: "LH-B", capacity: 220, type: "Lecture Hall", resources: ["Projector", "AC"] },
-    { name: "LH-C", capacity: 200, type: "Lecture Hall", resources: ["Projector", "AC"] },
-    { name: "CSE-Lab-A", capacity: 40, type: "Laboratory", resources: ["Computers", "AC"] },
-    { name: "CSE-Lab-B", capacity: 40, type: "Laboratory", resources: ["Computers", "AC"] },
-    { name: "IT-Lab-A", capacity: 40, type: "Laboratory", resources: ["Computers", "AC"] },
-    { name: "IT-Lab-B", capacity: 35, type: "Laboratory", resources: ["Computers"] },
-    { name: "ECE-Lab-A", capacity: 30, type: "Laboratory", resources: ["Electronics Kit"] },
-    { name: "ECE-Lab-B", capacity: 30, type: "Laboratory", resources: ["Electronics Kit"] },
-    { name: "MECH-Lab-A", capacity: 30, type: "Laboratory", resources: ["Machines"] },
-    { name: "MECH-Lab-B", capacity: 30, type: "Laboratory", resources: ["Machines"] },
-];
+const roomsConfig = {
+    "Shared": { classrooms: 15, labs: 0, capacity: 60, prefix: "CR" },
+    "Lecture Hall": { classrooms: 5, labs: 0, capacity: 200, prefix: "LH" },
+    "CSE": { classrooms: 8, labs: 6, capacity: 70, prefix: "CSE" },
+    "IT": { classrooms: 6, labs: 4, capacity: 60, prefix: "IT" },
+    "ECE": { classrooms: 6, labs: 4, capacity: 60, prefix: "ECE" },
+    "MECH": { classrooms: 6, labs: 4, capacity: 60, prefix: "MECH" },
+    "CIVIL": { classrooms: 4, labs: 3, capacity: 60, prefix: "CIVIL" }
+};
 
-const facultyData = [
-    { name: "Dr. Arun Kumar", email: "arun@college.edu", department: "CSE", designation: "Professor", maxLoad: 14 },
-    { name: "Dr. Priya Sharma", email: "priya@college.edu", department: "CSE", designation: "Associate Professor", maxLoad: 12 },
-    { name: "Mr. Ravi Patel", email: "ravi@college.edu", department: "CSE", designation: "Assistant Professor", maxLoad: 12 },
-    { name: "Ms. Sneha Gupta", email: "sneha@college.edu", department: "CSE", designation: "Assistant Professor", maxLoad: 10 },
-    { name: "Dr. Karthik Mohan", email: "karthik@college.edu", department: "CSE", designation: "Professor", maxLoad: 14 },
-    { name: "Ms. Divya Nair", email: "divya@college.edu", department: "CSE", designation: "Assistant Professor", maxLoad: 12 },
-    { name: "Mr. Sanjay Rao", email: "sanjay@college.edu", department: "CSE", designation: "Associate Professor", maxLoad: 14 },
-    { name: "Dr. Vinod Krishnan", email: "vinod@college.edu", department: "IT", designation: "Professor", maxLoad: 14 },
-    { name: "Ms. Kavya Reddy", email: "kavya@college.edu", department: "IT", designation: "Associate Professor", maxLoad: 12 },
-    { name: "Mr. Suresh Menon", email: "suresh@college.edu", department: "IT", designation: "Assistant Professor", maxLoad: 12 },
-    { name: "Dr. Asha Pillai", email: "asha@college.edu", department: "IT", designation: "Professor", maxLoad: 14 },
-    { name: "Mr. Nikhil Das", email: "nikhil@college.edu", department: "IT", designation: "Assistant Professor", maxLoad: 12 },
-    { name: "Ms. Rekha Varma", email: "rekha@college.edu", department: "IT", designation: "Assistant Professor", maxLoad: 12 },
-    { name: "Dr. Balaji Rao", email: "balaji@college.edu", department: "ECE", designation: "Professor", maxLoad: 14 },
-    { name: "Ms. Geetha Iyer", email: "geetha@college.edu", department: "ECE", designation: "Associate Professor", maxLoad: 12 },
-    { name: "Mr. Praveen Kumar", email: "praveen@college.edu", department: "ECE", designation: "Assistant Professor", maxLoad: 12 },
-    { name: "Dr. Meena Sundar", email: "meena@college.edu", department: "ECE", designation: "Professor", maxLoad: 14 },
-    { name: "Mr. Ajay Krishnan", email: "ajay@college.edu", department: "ECE", designation: "Assistant Professor", maxLoad: 12 },
-    { name: "Ms. Latha S", email: "latha@college.edu", department: "ECE", designation: "Associate Professor", maxLoad: 14 },
-    { name: "Dr. Harish Verma", email: "harish@college.edu", department: "MECH", designation: "Professor", maxLoad: 14 },
-    { name: "Mr. Deepak Singh", email: "deepak@college.edu", department: "MECH", designation: "Assistant Professor", maxLoad: 12 },
-    { name: "Dr. Ramesh Iyer", email: "ramesh@college.edu", department: "MECH", designation: "Professor", maxLoad: 14 },
-    { name: "Ms. Pooja B", email: "pooja@college.edu", department: "MECH", designation: "Associate Professor", maxLoad: 14 },
-    { name: "Mr. Vijay Anand", email: "vijay@college.edu", department: "MECH", designation: "Assistant Professor", maxLoad: 12 },
-    { name: "Ms. Ananya P", email: "ananya@college.edu", department: "MECH", designation: "Assistant Professor", maxLoad: 12 },
-];
+const classroomsData = [];
+Object.entries(roomsConfig).forEach(([dept, config]) => {
+    // Generate Classrooms
+    for (let i = 1; i <= config.classrooms; i++) {
+        classroomsData.push({
+            name: `${config.prefix}-${i.toString().padStart(3, '0')}`,
+            capacity: config.capacity + (i % 3 === 0 ? 10 : 0),
+            type: "Lecture Hall",
+            resources: ["Projector", i % 2 === 0 ? "AC" : "Whiteboard"]
+        });
+    }
+    // Generate Labs
+    for (let i = 1; i <= config.labs; i++) {
+        classroomsData.push({
+            name: `${config.prefix}-LAB-${i}`,
+            capacity: 35,
+            type: "Laboratory",
+            resources: [dept === "CSE" || dept === "IT" ? "Computers" : "Equipment", "AC"]
+        });
+    }
+});
+
+const facultyCounts = {
+    "CSE": 40,
+    "IT": 35,
+    "ECE": 35,
+    "MECH": 35,
+    "CIVIL": 15
+};
+
+const facultyData = [];
+// Names to make it look realistic
+const firstNames = ["Arun", "Priya", "Ravi", "Sneha", "Karthik", "Divya", "Sanjay", "Vinod", "Kavya", "Suresh", "Asha", "Nikhil", "Rekha", "Balaji", "Geetha", "Praveen", "Meena", "Ajay", "Latha", "Harish", "Deepak", "Ramesh", "Pooja", "Vijay", "Ananya", "Amit", "Rahul", "Sonia", "Vikram", "Neha", "Manoj", "Arjun", "Aditi", "Rohan", "Shweta"];
+const lastNames = ["Kumar", "Sharma", "Patel", "Gupta", "Mohan", "Nair", "Rao", "Krishnan", "Reddy", "Menon", "Pillai", "Das", "Varma", "Iyer", "Sundar", "Singh", "Anand", "S", "B", "P", "Joshi", "Chopra", "Malhotra", "Kapoor", "Bose"];
+
+Object.entries(facultyCounts).forEach(([dept, count]) => {
+    for (let i = 1; i <= count; i++) {
+        const fName = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const fullName = `${fName} ${lName}${i > 10 ? ' ' + String.fromCharCode(64 + (i % 26)) : ''}`;
+        const designation = i % 5 === 0 ? "Professor" : (i % 3 === 0 ? "Associate Professor" : "Assistant Professor");
+        
+        // Assign preferred semesters: 
+        // Professors/Associates like 5-8 (Senior), Assistants like 1-4 (Junior)
+        const preferred = (designation === "Professor" || designation === "Associate Professor") 
+            ? [5, 6, 7, 8] 
+            : [1, 2, 3, 4];
+
+        facultyData.push({
+            name: fullName,
+            email: `faculty.${dept.toLowerCase()}.${i}@college.edu`,
+            department: dept,
+            designation: designation,
+            maxLoad: 12 + (i % 5),
+            preferredSemesters: preferred
+        });
+    }
+});
 
 const batchesData = [];
 DEPARTMENTS.forEach(dept => {

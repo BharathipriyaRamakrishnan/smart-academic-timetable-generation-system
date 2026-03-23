@@ -1,6 +1,8 @@
 import Timetable from "../models/Timetable.js";
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
+import Faculty from "../models/Faculty.js";
+import Classroom from "../models/Classroom.js";
 import { generateSchedule } from "../services/scheduler.js";
 
 /* ─── GET /api/timetables ─────────────────────────────────────
@@ -45,6 +47,71 @@ export const updateTimetable = async (req, res) => {
         if (req.user.role === "COORDINATOR" && timetable.department !== req.user.department) {
             return res.status(403).json({ message: "You can only edit timetables for your own department." });
         }
+
+        // ─── CONFLICT DETECTION ─────────────────────────────────────
+        const otherTimetables = await Timetable.find({ _id: { $ne: req.params.id } })
+            .populate("schedule.slots.subject", "name")
+            .populate("schedule.slots.faculty", "name")
+            .populate("schedule.slots.classroom", "name");
+
+        const conflicts = [];
+
+        // Build a map of busy entities from other timetables
+        // busyMap[day][time][entityId] = { entityName, batchName }
+        const busyMap = {}; 
+
+        otherTimetables.forEach(ot => {
+            ot.schedule.forEach(daySch => {
+                const day = daySch.day;
+                if (!busyMap[day]) busyMap[day] = {};
+
+                daySch.slots.forEach(slot => {
+                    const time = slot.time;
+                    if (!busyMap[day][time]) busyMap[day][time] = {};
+
+                    if (slot.faculty) {
+                        const fid = slot.faculty._id.toString();
+                        busyMap[day][time][fid] = { name: slot.faculty.name, type: "Faculty", batch: ot.name };
+                    }
+                    if (slot.classroom) {
+                        const rid = slot.classroom._id.toString();
+                        busyMap[day][time][rid] = { name: slot.classroom.name, type: "Classroom", batch: ot.name };
+                    }
+                });
+            });
+        });
+
+        // Check the new suggested schedule against the busyMap
+        schedule.forEach(daySch => {
+            const day = daySch.day;
+            daySch.slots.forEach(slot => {
+                const time = slot.time;
+                if (!busyMap[day] || !busyMap[day][time]) return;
+
+                if (slot.faculty) {
+                    const fid = slot.faculty.toString();
+                    if (busyMap[day][time][fid]) {
+                        const conflict = busyMap[day][time][fid];
+                        conflicts.push(`${conflict.type} Conflict: ${conflict.name} is already busy with "${conflict.batch}" on ${day} ${time}`);
+                    }
+                }
+                if (slot.classroom) {
+                    const rid = slot.classroom.toString();
+                    if (busyMap[day][time][rid]) {
+                        const conflict = busyMap[day][time][rid];
+                        conflicts.push(`${conflict.type} Conflict: ${conflict.name} is already used by "${conflict.batch}" on ${day} ${time}`);
+                    }
+                }
+            });
+        });
+
+        if (conflicts.length > 0) {
+            return res.status(400).json({ 
+                message: "Scheduling conflicts detected!", 
+                conflicts 
+            });
+        }
+        // ────────────────────────────────────────────────────────────
 
         timetable.schedule = schedule;
         timetable.version = (timetable.version || 1) + 1;

@@ -207,7 +207,11 @@ export default function Timetable() {
         fetchTimetables();
         alert("Timetable updated successfully!");
       } else {
-        alert("Error: " + data.message);
+        if (data.conflicts && data.conflicts.length > 0) {
+          alert(`⚠️ Scheduling conflicts detected:\n\n${data.conflicts.join("\n")}`);
+        } else {
+          alert("Error: " + data.message);
+        }
       }
     } catch (error) {
       console.error("Error saving timetable:", error);

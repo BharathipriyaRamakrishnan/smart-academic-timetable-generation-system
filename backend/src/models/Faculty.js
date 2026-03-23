@@ -10,7 +10,8 @@ const facultySchema = new mongoose.Schema({
         day: { type: String, enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] },
         time: { type: String } // e.g., "09:00-10:00"
     }],
-    subjects: [{ type: mongoose.Schema.Types.ObjectId, ref: "Subject" }] // Subjects the faculty can teach
+    subjects: [{ type: mongoose.Schema.Types.ObjectId, ref: "Subject" }], // Subjects the faculty can teach
+    preferredSemesters: [{ type: Number }] // e.g., [1, 2, 3] for junior subjects
 }, { timestamps: true });
 
 export default mongoose.model("Faculty", facultySchema);

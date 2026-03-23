@@ -329,6 +329,8 @@ export const generateSchedule = async ({ batchId, department, generatedBy } = {}
             subjectDayCount[sid][day] = (subjectDayCount[sid][day] || 0) + 1;
         };
 
+        const batchSubjectFacultyMap = {}; // sid -> facultyId (consistency)
+
         // Day schedule structure
         const batchSchedule = {
             name:         batch.name,
@@ -377,22 +379,50 @@ export const generateSchedule = async ({ batchId, department, generatedBy } = {}
 
         // ── 3d. Helper: pick best faculty for a subject on a day ─────────────
         const pickFaculty = (subject, day, sessLen) => {
+            const sid = subject._id.toString();
+            
+            // 1. Consistency Check: Have we already assigned a faculty to this subject for this batch?
+            if (batchSubjectFacultyMap[sid]) {
+                const assignedFid = batchSubjectFacultyMap[sid];
+                const faculty = faculties.find(f => f._id.toString() === assignedFid);
+                if (faculty) {
+                    const fid = faculty._id.toString();
+                    if (facultyLeaveMap[fid]?.has(day)) return null;
+                    if ((facultyWeekCount[fid] || 0) + sessLen <= maxFacultyPerWeek &&
+                        (facultyDayCount[fid]?.[day] || 0) + sessLen <= maxFacultyPerDay) {
+                        return faculty;
+                    }
+                    // If assigned faculty hit their limit, we might have to relax consistency
+                    // but usually it's better to return null to avoid split consistency if possible.
+                    // For now, let's allow fallback if we really need to place it in Pass 1.
+                }
+            }
+
             const pool = getFacultyPool(subject)
                 .filter(f => {
                     const fid = f._id.toString();
-                    if (facultyLeaveMap[fid]?.has(day)) return false; // Early exit if on leave
+                    if (facultyLeaveMap[fid]?.has(day)) return false; 
                     return (
                         (facultyWeekCount[fid] || 0) + sessLen <= maxFacultyPerWeek &&
                         (facultyDayCount[fid]?.[day] || 0) + sessLen <= maxFacultyPerDay
                     );
                 })
-                .sort((a, b) =>
-                    (facultyWeekCount[a._id.toString()] || 0) -
-                    (facultyWeekCount[b._id.toString()] || 0)
-                );
+                .sort((a, b) => {
+                    // 2. Semester Preference Check
+                    const aPrefers = (a.preferredSemesters || []).includes(sem) ? 1 : 0;
+                    const bPrefers = (b.preferredSemesters || []).includes(sem) ? 1 : 0;
+                    if (aPrefers !== bPrefers) return bPrefers - aPrefers;
 
-            // Return faculty that is free for all sessions in the block (checked later in tryPlace)
-            return pool[0] || null;
+                    // 3. Load Balancing
+                    return (facultyWeekCount[a._id.toString()] || 0) -
+                           (facultyWeekCount[b._id.toString()] || 0);
+                });
+
+            const chosen = pool[0] || null;
+            if (chosen && !batchSubjectFacultyMap[sid]) {
+                batchSubjectFacultyMap[sid] = chosen._id.toString();
+            }
+            return chosen;
         };
 
         // ── 3e. PASS 1: Schedule each subject for its required lecturesPerWeek ─
@@ -537,20 +567,35 @@ export const generateSchedule = async ({ batchId, department, generatedBy } = {}
                     // Shuffle a fresh copy of subjects each time to avoid bias
                     const candidates = shuffle([...lectureSubjects]);
                     for (const subject of candidates) {
+                        const sid = subject._id.toString();
+                        // STRICT REPEAT LIMIT: avoid more than twice a day
+                        if ((subjectDayCount[sid]?.[day] || 0) >= maxSubjectRepeatDay) continue;
+
                         // Get ANY faculty who is free at this slot (ignore weekly load limits)
                         const pool = getFacultyPool(subject);
-                        const faculty = pool.find(f => {
-                            const fid = f._id.toString();
-                            if (facultyLeaveMap[fid]?.has(day)) return false;
-                            return !usedMap[fid]?.[day]?.[slot.time];
-                        });
+
+                        // Try consistency first
+                        let faculty = null;
+                        if (batchSubjectFacultyMap[sid]) {
+                            const assignedFid = batchSubjectFacultyMap[sid];
+                            faculty = pool.find(f => f._id.toString() === assignedFid && !usedMap[f._id.toString()]?.[day]?.[slot.time] && !facultyLeaveMap[f._id.toString()]?.has(day));
+                        }
+                        
+                        // Fallback to pool
+                        if (!faculty) {
+                            faculty = pool.find(f => {
+                                const fid = f._id.toString();
+                                if (facultyLeaveMap[fid]?.has(day)) return false;
+                                return !usedMap[fid]?.[day]?.[slot.time];
+                            });
+                        }
+
                         if (!faculty) continue;
 
                         const room = lectureRooms.find(r => !usedMap[r._id.toString()]?.[day]?.[slot.time]);
                         if (!room) continue;
 
                         const fid = faculty._id.toString();
-                        const sid = subject._id.toString();
 
                         markUsed(batchId_str,        day, slot.time);
                         markUsed(fid,                day, slot.time);
