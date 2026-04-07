@@ -33,6 +33,7 @@ function Login() {
             if (res.ok) {
                 localStorage.setItem("token", data.token);
                 localStorage.setItem("role", data.role);
+                localStorage.setItem("name", data.name);
                 if (data.department) {
                     localStorage.setItem("department", data.department);
                 } else {

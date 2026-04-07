@@ -39,7 +39,8 @@ router.post("/login", async (req, res) => {
         res.json({
             token,
             role: user.role,
-            department  // coordinators use coordinatorOf, faculty use department
+            department,  // coordinators use coordinatorOf, faculty use department
+            name: user.name
         });
     } catch (err) {
         console.error("Login error:", err);

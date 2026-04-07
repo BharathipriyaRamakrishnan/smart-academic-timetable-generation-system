@@ -24,7 +24,10 @@ export default function Sidebar() {
           </>
         )}
         {userRole === "FACULTY" && (
-          <button onClick={() => navigate("/facultydashboard")}><FaHome /> Dashboard</button>
+          <>
+            <button onClick={() => navigate("/facultydashboard")}><FaHome /> Dashboard</button>
+            <button onClick={() => navigate("/leaves")}><FaBook /> Leave Requests</button>
+          </>
         )}
         {userRole === "COORDINATOR" && (
           <>
