@@ -6,11 +6,14 @@ import {
     deleteTimetable,
     approveTimetable,
     rejectTimetable,
-    updateTimetable
+    updateTimetable,
+    getTimetableConflicts
 } from "../controllers/timetable.controller.js";
 import { protect, coordinatorOnly, adminOnly, adminOrCoordinatorOnly } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
+
+router.get("/conflicts", protect, adminOrCoordinatorOnly, getTimetableConflicts);
 
 router.get("/", protect, getTimetables);
 router.post("/save", protect, coordinatorOnly, saveTimetable);

@@ -191,7 +191,7 @@ function tryPlace({
 
     incFacultyLoad(fid, day, sessLen);
     incBatchDay(day, sessLen);
-    incSubjectDay(sid, day);
+    incSubjectDay(sid, day, sessLen);
 
     return true;
 }
@@ -322,11 +322,13 @@ export const generateSchedule = async ({ batchId, department, generatedBy } = {}
         // Per-batch tracking
         const batchDayCount   = {};  // [day] = int
         const subjectDayCount = {};  // [sid][day] = int
+        const batchWeeklyCount = {}; // [sid] = int
 
         const incBatchDay   = (day, n = 1) => { batchDayCount[day] = (batchDayCount[day] || 0) + n; };
-        const incSubjectDay = (sid, day)   => {
+        const incSubjectDay = (sid, day, n = 1)   => {
             if (!subjectDayCount[sid]) subjectDayCount[sid] = {};
-            subjectDayCount[sid][day] = (subjectDayCount[sid][day] || 0) + 1;
+            subjectDayCount[sid][day] = (subjectDayCount[sid][day] || 0) + n;
+            batchWeeklyCount[sid] = (batchWeeklyCount[sid] || 0) + n;
         };
 
         const batchSubjectFacultyMap = {}; // sid -> facultyId (consistency)

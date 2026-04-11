@@ -5,6 +5,7 @@ import { FaCalendarTimes, FaCheck, FaTimes, FaBell } from "react-icons/fa";
 export default function CoordinatorDashboard() {
   const [selectedYear, setSelectedYear] = useState("1");
   const [leaves, setLeaves] = useState([]);
+  const [conflicts, setConflicts] = useState([]);
   const [loadingLeaves, setLoadingLeaves] = useState(false);
 
   const years = ["1", "2", "3", "4"];
@@ -13,6 +14,7 @@ export default function CoordinatorDashboard() {
 
   useEffect(() => {
     fetchDepartmentLeaves();
+    fetchConflicts();
   }, []);
 
   const fetchDepartmentLeaves = async () => {
@@ -30,6 +32,18 @@ export default function CoordinatorDashboard() {
     }
   };
 
+  const fetchConflicts = async () => {
+    try {
+      const res = await fetch(`/api/timetables/conflicts`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) setConflicts(data);
+    } catch (error) {
+      console.error("Error fetching conflicts:", error);
+    }
+  };
+
   const handleLeaveStatus = async (id, status) => {
     try {
       const res = await fetch(`/api/leaves/${id}/status`, {
@@ -42,6 +56,7 @@ export default function CoordinatorDashboard() {
       });
       if (res.ok) {
         fetchDepartmentLeaves();
+        fetchConflicts();
       } else {
         const data = await res.json();
         alert(data.message || "Failed to update status");
@@ -123,6 +138,51 @@ export default function CoordinatorDashboard() {
                 </div>
               </div>
             </section>
+
+            {/* Timetable Conflicts / Adjustments Needed */}
+            {conflicts.length > 0 && (
+              <section style={{ marginTop: "2rem", marginBottom: "2rem" }}>
+                <h2 style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem", color: "#ef4444" }}>
+                  <FaTimes /> Action Required: Timetable Adjustments
+                </h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  {conflicts.map((conflict, index) => (
+                    <div key={index} className="glass-panel" style={{ padding: "1.25rem", borderLeft: "4px solid #ef4444" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
+                        <div>
+                          <h3 style={{ margin: "0 0 0.25rem", fontSize: "1rem" }}>{conflict.timetableName} Conflict</h3>
+                          <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                            <strong>{conflict.facultyName}</strong> is on approved leave on {new Date(conflict.date).toLocaleDateString()} ({conflict.day}).
+                          </p>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", padding: "0.3rem 0.6rem", borderRadius: "12px", fontWeight: "bold", textAlign: "right" }}>
+                          {conflict.period} <br/> {conflict.subject}
+                        </span>
+                      </div>
+                      
+                      <div style={{ 
+                        background: "rgba(255,255,255,0.03)", 
+                        padding: "0.75rem", 
+                        borderRadius: "8px", 
+                        fontSize: "0.85rem",
+                        color: "#a78bfa",
+                        marginTop: "1rem"
+                      }}>
+                        <strong>Swap Suggestion: </strong> {conflict.suggestion}
+                      </div>
+
+                      <button 
+                        className="btn-primary" 
+                        style={{ marginTop: "1rem", fontSize: "0.85rem", padding: "0.5rem 1rem", background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid rgba(239, 68, 68, 0.3)" }}
+                        onClick={() => window.location.href = '/timetable'}
+                      >
+                        Fix in Timetable Builder →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           <div>

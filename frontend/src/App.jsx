@@ -24,7 +24,7 @@ function ThemeToggleButton() {
       onClick={toggleTheme}
       style={{
         position: 'fixed',
-        top: '1.25rem',
+        bottom: '1.5rem',
         right: '1.5rem',
         zIndex: 9999,
         background: 'var(--glass-bg)',

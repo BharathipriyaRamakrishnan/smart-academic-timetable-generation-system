@@ -3,6 +3,7 @@ import Notification from "../models/Notification.js";
 import User from "../models/User.js";
 import Faculty from "../models/Faculty.js";
 import Classroom from "../models/Classroom.js";
+import LeaveRequest from "../models/LeaveRequest.js";
 import { generateSchedule } from "../services/scheduler.js";
 
 /* ─── GET /api/timetables ─────────────────────────────────────
@@ -231,6 +232,93 @@ export const generateTimetable = async (req, res) => {
         res.status(200).json({ message: "Timetable generated successfully", data: timetables });
     } catch (error) {
         console.error("Error generating timetable:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/* ─── GET /api/timetables/conflicts ────────────────────────── */
+export const getTimetableConflicts = async (req, res) => {
+    try {
+        const department = req.user.department;
+        if (!department) return res.status(400).json({ message: "Department required" });
+
+        // Get leaves from today onwards
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const approvedLeaves = await LeaveRequest.find({
+            department,
+            status: "APPROVED",
+            date: { $gte: today }
+        }).populate("faculty", "name");
+
+        if (approvedLeaves.length === 0) {
+            return res.status(200).json([]);
+        }
+
+        const timetables = await Timetable.find({ department })
+            .populate("schedule.slots.subject")
+            .populate("schedule.slots.faculty")
+            .populate("schedule.slots.classroom");
+
+        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const conflicts = [];
+
+        for (const leave of approvedLeaves) {
+            const leaveDate = new Date(leave.date);
+            const dayOfWeek = dayNames[leaveDate.getUTCDay()];
+            const fid = leave.faculty._id.toString();
+
+            for (const tt of timetables) {
+                // Find if the faculty is scheduled on this day
+                const daySch = tt.schedule.find(d => d.day === dayOfWeek);
+                if (!daySch) continue;
+
+                for (const slot of daySch.slots) {
+                    if (slot.faculty && slot.faculty._id.toString() === fid) {
+                        // Conflict found! Find a swap candidate.
+                        let swapSuggestion = "Regenerate timetable to resolve conflict.";
+                        let swapFound = false;
+                        
+                        swapSearch: for (const otherDaySch of tt.schedule) {
+                            if (otherDaySch.day === dayOfWeek) continue;
+                            
+                            for (const otherSlot of otherDaySch.slots) {
+                                if (otherSlot.faculty && otherSlot.faculty._id.toString() !== fid) {
+                                    const fidB = otherSlot.faculty._id.toString();
+                                    
+                                    // Make sure Faculty B is not absent on `leaveDate`
+                                    const bLeaveOnOriginalDate = approvedLeaves.some(l => 
+                                        l.faculty._id.toString() === fidB && l.date.getTime() === leaveDate.getTime()
+                                    );
+                                    if (bLeaveOnOriginalDate) continue;
+
+                                    swapSuggestion = `Update ${dayOfWeek} ${slot.time} period to ${otherSlot.faculty.name} & Swap with ${otherSlot.time} on ${otherDaySch.day}`;
+                                    swapFound = true;
+                                    break swapSearch;
+                                }
+                            }
+                        }
+
+                        conflicts.push({
+                            timetableId: tt._id,
+                            timetableName: tt.name,
+                            batchName: tt.name,
+                            facultyName: leave.faculty.name,
+                            date: leave.date,
+                            day: dayOfWeek,
+                            period: slot.time,
+                            subject: slot.subject ? slot.subject.name : "Class",
+                            suggestion: swapSuggestion
+                        });
+                    }
+                }
+            }
+        }
+
+        res.status(200).json(conflicts);
+    } catch (error) {
+        console.error("Error fetching timetable conflicts:", error);
         res.status(500).json({ message: error.message });
     }
 };

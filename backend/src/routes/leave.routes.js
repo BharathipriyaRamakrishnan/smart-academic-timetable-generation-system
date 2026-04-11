@@ -4,7 +4,9 @@ import {
     createLeaveRequest, 
     getMyLeaves, 
     getDepartmentLeaves, 
-    updateLeaveStatus 
+    updateLeaveStatus,
+    getLeaveWithConflicts,
+    applyConflictSuggestion
 } from "../controllers/leave.controller.js";
 
 const router = express.Router();
@@ -18,6 +20,8 @@ router.get("/my", facultyOnly, getMyLeaves);
 
 // Coordinator/Admin routes
 router.get("/department/:department", getDepartmentLeaves); // Staff/Admin can view
-router.patch("/:id/status", coordinatorOnly, updateLeaveStatus);
+router.get("/:id/conflicts", coordinatorOnly, getLeaveWithConflicts); // Get leave with conflict details
+router.patch("/:id/status", coordinatorOnly, updateLeaveStatus); // Approve/Reject leave
+router.post("/:id/apply-suggestion", coordinatorOnly, applyConflictSuggestion); // Apply a specific suggestion
 
 export default router;
