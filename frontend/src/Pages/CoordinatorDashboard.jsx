@@ -1,261 +1,287 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../Components/Sidebar";
-import { FaCalendarTimes, FaCheck, FaTimes, FaBell } from "react-icons/fa";
+import NotificationBell from "../Components/NotificationBell";
+import { useNavigate } from "react-router-dom";
+import { FaCalendarTimes, FaBell, FaExclamationTriangle, FaCheckCircle, FaClipboardList } from "react-icons/fa";
 
 export default function CoordinatorDashboard() {
-  const [selectedYear, setSelectedYear] = useState("1");
-  const [leaves, setLeaves] = useState([]);
-  const [conflicts, setConflicts] = useState([]);
-  const [loadingLeaves, setLoadingLeaves] = useState(false);
+  const [pendingLeaves, setPendingLeaves] = useState([]);
+  const [approvedConflicts, setApprovedConflicts] = useState([]);
+  const [subLogCount, setSubLogCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const years = ["1", "2", "3", "4"];
   const department = localStorage.getItem("department") || "CSE";
   const token = localStorage.getItem("token");
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchDepartmentLeaves();
-    fetchConflicts();
+    fetchDashboardData();
   }, []);
 
-  const fetchDepartmentLeaves = async () => {
-    setLoadingLeaves(true);
+  const fetchDashboardData = async () => {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/leaves/department/${department}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) setLeaves(data);
-    } catch (error) {
-      console.error("Error fetching department leaves:", error);
-    } finally {
-      setLoadingLeaves(false);
-    }
-  };
+      const [leavesRes, conflictsRes, logRes] = await Promise.all([
+        fetch(`/api/leaves/department/${department}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch("/api/leaves/approved-with-conflicts", {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch("/api/substitutions/log", {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
 
-  const fetchConflicts = async () => {
-    try {
-      const res = await fetch(`/api/timetables/conflicts`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) setConflicts(data);
-    } catch (error) {
-      console.error("Error fetching conflicts:", error);
-    }
-  };
-
-  const handleLeaveStatus = async (id, status) => {
-    try {
-      const res = await fetch(`/api/leaves/${id}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
-      if (res.ok) {
-        fetchDepartmentLeaves();
-        fetchConflicts();
-      } else {
-        const data = await res.json();
-        alert(data.message || "Failed to update status");
+      if (leavesRes.ok) {
+        const data = await leavesRes.json();
+        setPendingLeaves(data.filter(l => l.status === "PENDING"));
       }
-    } catch (error) {
-      console.error("Error updating leave status:", error);
+      if (conflictsRes.ok) {
+        setApprovedConflicts(await conflictsRes.json());
+      }
+      if (logRes.ok) {
+        const logs = await logRes.json();
+        setSubLogCount(logs.filter(l => l.status === "ACTIVE").length);
+      }
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const pendingLeaves = leaves.filter(l => l.status === "PENDING");
+  const statCards = [
+    {
+      label: "Pending Leave Requests",
+      value: pendingLeaves.length,
+      icon: "⏳",
+      color: "#f59e0b",
+      action: () => navigate("/leave-management"),
+      actionLabel: "Review →"
+    },
+    {
+      label: "Classes Need Coverage",
+      value: approvedConflicts.reduce((acc, l) => acc + (l.conflictResolution?.conflictCount || 0), 0),
+      icon: "⚠️",
+      color: "#ef4444",
+      action: () => navigate("/leave-management?tab=conflicts"),
+      actionLabel: "Assign Substitutes →"
+    },
+    {
+      label: "Active Substitutions",
+      value: subLogCount,
+      icon: "🔄",
+      color: "#10b981",
+      action: () => navigate("/leave-management?tab=log"),
+      actionLabel: "View Log →"
+    }
+  ];
+
+  const quickActions = [
+    {
+      id: "qa-leave-management",
+      icon: <FaCalendarTimes size={22} color="#f59e0b" />,
+      title: "Leave Management",
+      desc: "Review pending leaves, assign substitutes, and view substitution history.",
+      badge: pendingLeaves.length > 0 ? `${pendingLeaves.length} pending` : null,
+      badgeColor: "#f59e0b",
+      onClick: () => navigate("/leave-management")
+    },
+    {
+      id: "qa-timetable",
+      icon: <span style={{ fontSize: "1.4rem" }}>📅</span>,
+      title: "Timetable Builder",
+      desc: "Generate and manage academic schedules for your department.",
+      badge: null,
+      onClick: () => navigate("/timetable")
+    },
+    {
+      id: "qa-conflicts",
+      icon: <FaExclamationTriangle size={22} color="#ef4444" />,
+      title: "Conflict Dashboard",
+      desc: "View all approved leaves with unresolved timetable conflicts requiring substitutes.",
+      badge: approvedConflicts.length > 0 ? `${approvedConflicts.length} unresolved` : null,
+      badgeColor: "#ef4444",
+      onClick: () => navigate("/leave-management?tab=conflicts")
+    },
+    {
+      id: "qa-sub-log",
+      icon: <FaClipboardList size={22} color="#818cf8" />,
+      title: "Substitution Log",
+      desc: "Track all substitute assignments made for your department.",
+      badge: null,
+      onClick: () => navigate("/leave-management?tab=log")
+    }
+  ];
 
   return (
     <div className="app-container">
       <Sidebar />
       <main className="main-content">
-        <header className="page-header">
-          <h1 className="page-title">Coordinator Dashboard</h1>
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-            <span style={{ padding: "0.5rem 1rem", background: "rgba(79, 70, 229, 0.1)", borderRadius: "20px", color: "#818cf8" }}>
-              Department: {department}
+        {/* Header */}
+        <header className="page-header" style={{ marginBottom: "2rem" }}>
+          <div>
+            <h1 className="page-title">Coordinator Dashboard</h1>
+            <p style={{ color: "var(--text-muted)", margin: "0.4rem 0 0", fontSize: "0.9rem" }}>
+              Welcome back! Here's a real-time overview of your department.
+            </p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <span style={{ padding: "0.45rem 1rem", background: "rgba(79,70,229,0.1)", borderRadius: "20px", color: "#818cf8", fontSize: "0.85rem", fontWeight: 600 }}>
+              🏛 {department}
             </span>
+            <NotificationBell />
             {pendingLeaves.length > 0 && (
               <div style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
+                display: "flex", alignItems: "center", gap: "0.5rem",
                 padding: "0.4rem 1rem",
-                background: "rgba(245, 158, 11, 0.15)",
-                color: "#f59e0b",
-                borderRadius: "20px",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                animation: "pulse 2s infinite"
-              }}>
-                <FaBell /> {pendingLeaves.length} Pending Leave{pendingLeaves.length > 1 ? 's' : ''}
+                background: "rgba(245,158,11,0.15)", color: "#f59e0b",
+                borderRadius: "20px", fontSize: "0.82rem", fontWeight: 600,
+                animation: "pulse 2s infinite", cursor: "pointer"
+              }} onClick={() => navigate("/leave-management")}>
+                <FaBell size={12} />
+                {pendingLeaves.length} Pending Leave{pendingLeaves.length > 1 ? "s" : ""}
               </div>
             )}
           </div>
         </header>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "2rem" }}>
-          <div>
-            {/* Year Selector */}
-            <section className="glass-panel" style={{ padding: "2rem", marginBottom: "2rem" }}>
-              <h2 style={{ marginTop: 0, marginBottom: "1.5rem" }}>Select Academic Year</h2>
-
-              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                {years.map((year) => (
-                  <button
-                    key={year}
-                    className={selectedYear === year ? "btn-primary" : ""}
-                    onClick={() => setSelectedYear(year)}
-                    style={{
-                      padding: "0.75rem 1.5rem",
-                      borderRadius: "12px",
-                      background: selectedYear === year ? "" : "rgba(255,255,255,0.05)",
-                      color: selectedYear === year ? "white" : "var(--text-muted)",
-                      border: "1px solid var(--glass-border)",
-                      transition: "all 0.2s"
-                    }}
-                  >
-                    Year {year}
-                  </button>
-                ))}
+        {/* Stat Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "1.25rem", marginBottom: "2.5rem" }}>
+          {statCards.map(card => (
+            <div
+              key={card.label}
+              className="glass-panel"
+              onClick={card.action}
+              style={{
+                padding: "1.5rem",
+                cursor: "pointer",
+                transition: "transform 0.18s, box-shadow 0.18s",
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.75rem"
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 12px 32px ${card.color}25`; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = ""; }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontSize: "2.2rem", fontWeight: 800, color: card.color, lineHeight: 1 }}>
+                    {loading ? "—" : card.value}
+                  </div>
+                  <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "4px" }}>{card.label}</div>
+                </div>
+                <div style={{
+                  width: "48px", height: "48px", borderRadius: "14px",
+                  background: `${card.color}20`, border: `1px solid ${card.color}40`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: "1.5rem", flexShrink: 0
+                }}>{card.icon}</div>
               </div>
-            </section>
+              <div style={{ fontSize: "0.82rem", color: card.color, fontWeight: 600 }}>{card.actionLabel}</div>
+            </div>
+          ))}
+        </div>
 
-            {/* Departments List */}
-            <section>
-              <h2 style={{ marginBottom: "1.5rem" }}>Manage Timetable</h2>
-              <div className="glass-panel" style={{ padding: "1.5rem" }}>
-                <h3 style={{ marginTop: 0, color: "var(--secondary)" }}>{department} Department</h3>
-                <p style={{ color: "var(--text-muted)" }}>Generate and manage academic schedules for this department.</p>
-
-                <div style={{ marginTop: "1.5rem", display: "flex", gap: "1rem" }}>
-                  <button className="btn-primary" onClick={() => window.location.href = '/timetable'}>
-                    Open Timetable Builder
-                  </button>
+        {/* Urgent Alert: conflicts need action */}
+        {!loading && approvedConflicts.length > 0 && (
+          <div
+            className="glass-panel"
+            onClick={() => navigate("/leave-management?tab=conflicts")}
+            style={{
+              padding: "1.25rem 1.5rem",
+              borderLeft: "4px solid #ef4444",
+              marginBottom: "2rem",
+              cursor: "pointer",
+              transition: "transform 0.15s",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "1rem"
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = "translateX(3px)"}
+            onMouseLeave={e => e.currentTarget.style.transform = "none"}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{
+                width: "40px", height: "40px", borderRadius: "12px",
+                background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "1.3rem", flexShrink: 0, animation: "pulse 2s infinite"
+              }}>⚠️</div>
+              <div>
+                <div style={{ fontWeight: 700, color: "#ef4444", fontSize: "0.95rem" }}>
+                  Action Required: Timetable Substitutes Needed
+                </div>
+                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>
+                  {approvedConflicts.length} approved leave{approvedConflicts.length > 1 ? "s" : ""} with unresolved class conflicts.
+                  Assign substitutes to keep classes running.
                 </div>
               </div>
-            </section>
-
-            {/* Timetable Conflicts / Adjustments Needed */}
-            {conflicts.length > 0 && (
-              <section style={{ marginTop: "2rem", marginBottom: "2rem" }}>
-                <h2 style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem", color: "#ef4444" }}>
-                  <FaTimes /> Action Required: Timetable Adjustments
-                </h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                  {conflicts.map((conflict, index) => (
-                    <div key={index} className="glass-panel" style={{ padding: "1.25rem", borderLeft: "4px solid #ef4444" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
-                        <div>
-                          <h3 style={{ margin: "0 0 0.25rem", fontSize: "1rem" }}>{conflict.timetableName} Conflict</h3>
-                          <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                            <strong>{conflict.facultyName}</strong> is on approved leave on {new Date(conflict.date).toLocaleDateString()} ({conflict.day}).
-                          </p>
-                        </div>
-                        <span style={{ fontSize: "0.75rem", background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", padding: "0.3rem 0.6rem", borderRadius: "12px", fontWeight: "bold", textAlign: "right" }}>
-                          {conflict.period} <br/> {conflict.subject}
-                        </span>
-                      </div>
-                      
-                      <div style={{ 
-                        background: "rgba(255,255,255,0.03)", 
-                        padding: "0.75rem", 
-                        borderRadius: "8px", 
-                        fontSize: "0.85rem",
-                        color: "#a78bfa",
-                        marginTop: "1rem"
-                      }}>
-                        <strong>Swap Suggestion: </strong> {conflict.suggestion}
-                      </div>
-
-                      <button 
-                        className="btn-primary" 
-                        style={{ marginTop: "1rem", fontSize: "0.85rem", padding: "0.5rem 1rem", background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid rgba(239, 68, 68, 0.3)" }}
-                        onClick={() => window.location.href = '/timetable'}
-                      >
-                        Fix in Timetable Builder →
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            </div>
+            <span style={{ fontSize: "0.85rem", color: "#ef4444", fontWeight: 700, flexShrink: 0 }}>Fix Now →</span>
           </div>
+        )}
 
-          <div>
-            {/* Leave Management Notification Area */}
-            <section className="glass-panel" style={{ padding: "1.5rem", minHeight: "100%" }}>
-              <h2 style={{ fontSize: "1.25rem", marginTop: 0, marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                <FaCalendarTimes color="#f59e0b" /> Faculty Leaves
-              </h2>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                {loadingLeaves ? (
-                  <p style={{ textAlign: "center", color: "var(--text-muted)" }}>Loading...</p>
-                ) : leaves.length === 0 ? (
-                  <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "2rem" }}>
-                    No leave requests found for your department.
-                  </p>
-                ) : (
-                  leaves.map(leave => (
-                    <div key={leave._id} style={{
-                      padding: "1rem",
-                      background: "rgba(255,255,255,0.05)",
-                      borderRadius: "12px",
-                      border: leave.status === "PENDING" ? "1px solid rgba(245, 158, 11, 0.3)" : "1px solid rgba(255,255,255,0.05)"
-                    }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
-                        <div>
-                          <div style={{ fontWeight: 600, color: "white" }}>{leave.faculty?.name}</div>
-                          <div style={{ fontSize: "0.8rem", color: "#818cf8" }}>{new Date(leave.date).toLocaleDateString()}</div>
-                        </div>
-                        {leave.status === "PENDING" ? (
-                          <div style={{ display: "flex", gap: "0.5rem" }}>
-                            <button 
-                              onClick={() => handleLeaveStatus(leave._id, "APPROVED")}
-                              style={{ width: "28px", height: "28px", borderRadius: "50%", border: "none", background: "rgba(16,185,129,0.2)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                              title="Approve"
-                            >
-                              <FaCheck size={12} />
-                            </button>
-                            <button 
-                              onClick={() => handleLeaveStatus(leave._id, "REJECTED")}
-                              style={{ width: "28px", height: "28px", borderRadius: "50%", border: "none", background: "rgba(239,68,68,0.2)", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                              title="Reject"
-                            >
-                              <FaTimes size={12} />
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ 
-                            fontSize: "0.7rem", 
-                            fontWeight: 700, 
-                            color: leave.status === "APPROVED" ? "#10b981" : "#ef4444",
-                            textTransform: "uppercase"
-                          }}>
-                            {leave.status}
-                          </span>
-                        )}
-                      </div>
-                      <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0, fontStyle: "italic" }}>
-                        " {leave.reason} "
-                      </p>
-                    </div>
-                  ))
-                )}
+        {/* Quick Actions Grid */}
+        <div>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1.25rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Quick Actions
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+            {quickActions.map(action => (
+              <div
+                key={action.id}
+                id={action.id}
+                className="glass-panel"
+                onClick={action.onClick}
+                style={{
+                  padding: "1.5rem",
+                  cursor: "pointer",
+                  transition: "transform 0.18s, box-shadow 0.18s",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.75rem"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.2)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = ""; }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{
+                    width: "46px", height: "46px", borderRadius: "12px",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid var(--glass-border)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0
+                  }}>{action.icon}</div>
+                  {action.badge && (
+                    <span style={{
+                      padding: "0.25rem 0.7rem",
+                      background: `${action.badgeColor}20`,
+                      color: action.badgeColor,
+                      borderRadius: "20px",
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      border: `1px solid ${action.badgeColor}40`,
+                      animation: "pulse 2s infinite"
+                    }}>{action.badge}</span>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.35rem" }}>{action.title}</div>
+                  <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5 }}>{action.desc}</div>
+                </div>
               </div>
-            </section>
+            ))}
           </div>
         </div>
       </main>
+
       <style>{`
         @keyframes pulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.05); opacity: 0.8; }
-          100% { transform: scale(1); opacity: 1; }
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.85; transform: scale(1.03); }
         }
       `}</style>
     </div>

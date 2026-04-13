@@ -3,6 +3,7 @@ import Login from './Pages/Login.jsx';
 import AdminDashboard from './Pages/AdminDashboard.jsx';
 import FacultyDashboard from './Pages/FacultyDashboard.jsx';
 import FacultyLeaves from './Pages/FacultyLeaves.jsx';
+import LeaveManagement from './Pages/LeaveManagement.jsx';
 import { Route, Routes } from "react-router-dom";
 import Departments from "./Pages/Departments.jsx";
 import Faculty from "./Pages/Faculty.jsx";
@@ -66,6 +67,7 @@ function App() {
         {/* Coordinator & Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={["COORDINATOR", "ADMIN"]} />}>
           <Route path="/coordinator" element={<CoordinatorDashboard />} />
+          <Route path="/leave-management" element={<LeaveManagement />} />
           <Route path="/faculty" element={<Faculty />} />
           <Route path="/classrooms" element={<Classrooms />} />
           <Route path="/subjects" element={<Subjects />} />

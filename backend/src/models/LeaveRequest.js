@@ -31,52 +31,13 @@ const leaveRequestSchema = new mongoose.Schema({
         type: Date
     },
     conflictResolution: {
-        hasConflicts: {
-            type: Boolean,
-            default: false
-        },
-        conflictCount: {
-            type: Number,
-            default: 0
-        },
-        weekday: {
-            type: String
-        },
-        conflicts: [{
-            timetableId: mongoose.Schema.Types.ObjectId,
-            timetableName: String,
-            day: String,
-            time: String,
-            subject: mongoose.Schema.Types.ObjectId,
-            classroom: mongoose.Schema.Types.ObjectId,
-            type: String
-        }],
-        resolutions: [{
-            conflict: {
-                timetableId: mongoose.Schema.Types.ObjectId,
-                timetableName: String,
-                day: String,
-                time: String,
-                subject: mongoose.Schema.Types.ObjectId,
-                classroom: mongoose.Schema.Types.ObjectId,
-                type: String
-            },
-            suggestions: [{
-                type: String, // FACULTY_REPLACEMENT, SLOT_RESCHEDULING, MANUAL_RESOLUTION
-                priority: Number,
-                description: String,
-                details: mongoose.Schema.Types.Mixed,
-                status: String,
-                appliedAt: {
-                    type: Date,
-                    default: null
-                }
-            }],
-            resolvedSuggestionIndex: {
-                type: Number,
-                default: null
-            }
-        }]
+        type: mongoose.Schema.Types.Mixed,
+        default: {
+            hasConflicts: false,
+            conflictCount: 0,
+            conflicts: [],
+            resolutions: []
+        }
     }
 }, { timestamps: true });
 

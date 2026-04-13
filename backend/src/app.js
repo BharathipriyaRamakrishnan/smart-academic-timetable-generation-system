@@ -14,6 +14,7 @@ import assignmentRoutes from "./routes/assignment.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import leaveRoutes from "./routes/leave.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import substitutionRoutes from "./routes/substitution.routes.js";
 import debugRoutes from "./routes/debug.routes.js";
 
 dotenv.config();
@@ -35,6 +36,7 @@ app.use("/api/assignments", assignmentRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/leaves", leaveRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/substitutions", substitutionRoutes);
 app.use("/api/debug", debugRoutes);
 
 export default app;
