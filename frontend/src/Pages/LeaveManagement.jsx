@@ -188,6 +188,29 @@ function ConflictSlotCard({ conflict, resolution, leaveId, leaveDate, leaveFacul
                 </div>
             )}
 
+            {/* Availability info */}
+            {!isResolved && !loadingFaculty && (
+                <div style={{
+                    marginTop: "0.6rem", fontSize: "0.75rem",
+                    color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.4rem"
+                }}>
+                    🛡️ Only showing faculty with <strong style={{ color: "#10b981" }}>no scheduling conflicts</strong> at {conflict.time} on {conflict.day}
+                    {availableFaculty.length > 0 && (
+                        <span style={{
+                            marginLeft: "0.5rem",
+                            padding: "1px 6px",
+                            borderRadius: "6px",
+                            fontSize: "0.7rem",
+                            background: "rgba(16,185,129,0.12)",
+                            color: "#10b981",
+                            fontWeight: 600
+                        }}>
+                            {availableFaculty.length} available
+                        </span>
+                    )}
+                </div>
+            )}
+
             {/* Pre-computed suggestions info */}
             {!isResolved && resolution?.suggestions?.[0]?.type === "FACULTY_REPLACEMENT" && (
                 <div style={{

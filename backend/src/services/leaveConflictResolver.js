@@ -3,6 +3,7 @@ import LeaveRequest from "../models/LeaveRequest.js";
 import FacultySubjectAssignment from "../models/FacultySubjectAssignment.js";
 import Faculty from "../models/Faculty.js";
 import User from "../models/User.js";
+import SubstitutionLog from "../models/SubstitutionLog.js";
 
 /**
  * Convert a date to its weekday name
@@ -148,8 +149,10 @@ export const findAlternativeFaculty = async (subjectId, dayName, timeSlot, exclu
 
 /**
  * Check if a faculty is busy at a specific day and time slot in any timetable
+ * Also checks active substitution logs to prevent double-booking substitutes.
  */
 export const isSlotBusy = async (facultyId, dayName, timeSlot) => {
+    // Check 1: Is the faculty assigned in any timetable slot at this day/time?
     const timetables = await Timetable.find({ status: { $in: ["APPROVED", "PUBLISHED"] } });
 
     for (const timetable of timetables) {
@@ -165,6 +168,18 @@ export const isSlotBusy = async (facultyId, dayName, timeSlot) => {
 
         if (isBusy) return true;
     }
+
+    // Check 2: Is the faculty already assigned as a substitute at this day/time?
+    // This catches edge cases where the timetable write may not have propagated yet
+    // or where concurrent assignments could cause double-booking.
+    const activeSubstitution = await SubstitutionLog.findOne({
+        substituteFacultyId: facultyId,
+        day: dayName,
+        time: timeSlot,
+        status: "ACTIVE"
+    });
+
+    if (activeSubstitution) return true;
 
     return false;
 };
