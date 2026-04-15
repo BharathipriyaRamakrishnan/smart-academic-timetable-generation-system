@@ -177,26 +177,30 @@ export const assignSubstitute = async (req, res) => {
 
         // ── Notify substitute faculty ───────────────────────────────
         try {
-            // Find the User account linked to this Faculty
-            const subUser = await User.findOne({ 
-                $or: [
-                    { email: substituteFaculty.email },
-                    { department: substituteFaculty.department, role: "FACULTY" }
-                ]
-            });
+            // Find the User account linked to this Faculty via email bridge
+            const subUser = await User.findOne({ email: new RegExp('^' + substituteFaculty.email + '$', 'i') });
 
             if (subUser) {
                 const coordinator = await User.findById(req.user.id).select("name");
+                const formattedDate = new Date(leave.date).toLocaleDateString("en-IN", {
+                    weekday: "long", year: "numeric", month: "long", day: "numeric"
+                });
+                const subjectInfo = subjectName && subjectName !== "—" ? subjectName : "a class";
+                const classroomInfo = classroomName && classroomName !== "—" ? ` in ${classroomName}` : "";
+
                 await Notification.create({
                     recipientRole: "FACULTY",
                     recipientId: subUser._id,
                     department: leave.department,
                     type: "SUBSTITUTION_ASSIGNED",
-                    title: "You've Been Assigned as Substitute",
-                    message: `${coordinator?.name || "The Coordinator"} has assigned you to cover ${populatedSlot?.subject?.name || "a class"} on ${day} at ${time} (${new Date(leave.date).toDateString()}) in place of ${leave.faculty.name}.`,
+                    title: "📅 New Substitution Class Assigned",
+                    message: `${coordinator?.name || "The Coordinator"} has assigned you to cover "${subjectInfo}"${classroomInfo} on ${day} at ${time} (${formattedDate}), substituting for ${originalFacultyName}. Please check your timetable for the updated schedule.`,
                     link: "/timetable",
                     leaveRequestId
                 });
+                console.log(`[assignSubstitute] Notification sent to ${subUser.email} (${subUser._id})`);
+            } else {
+                console.warn(`[assignSubstitute] No User account found for substitute faculty email: ${substituteFaculty.email}. Notification skipped.`);
             }
         } catch (notifErr) {
             console.error("Failed to notify substitute faculty:", notifErr);
@@ -281,10 +285,11 @@ export const revertSubstitution = async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────
    GET /api/substitutions/available-faculty
    Get available faculty for a specific slot (for coordinator's dropdown)
+   Only returns faculty from the specified department.
 ────────────────────────────────────────────────────────────────── */
 export const getAvailableFaculty = async (req, res) => {
     try {
-        const { day, time, excludeFacultyId, subjectId, leaveDate } = req.query;
+        const { day, time, excludeFacultyId, subjectId, leaveDate, department } = req.query;
 
         if (!day || !time) {
             return res.status(400).json({ message: "day and time are required" });
@@ -296,12 +301,41 @@ export const getAvailableFaculty = async (req, res) => {
         const safeSubjectId = subjectId && subjectId !== "undefined" && subjectId !== "null"
             ? subjectId
             : null;
-        const safeExcludeId = excludeFacultyId && excludeFacultyId !== "undefined" && excludeFacultyId !== "null"
-            ? excludeFacultyId
-            : "000000000000000000000000";
         const safeLeaveeDate = leaveDate && leaveDate !== "undefined" ? leaveDate : null;
+        // Use explicit department from query, fallback to coordinator's own department
+        const safeDepartment = department && department !== "undefined" && department !== "null"
+            ? department
+            : req.user.department || null;
 
-        const alternatives = await findAlternativeFaculty(safeSubjectId, day, time, safeExcludeId, safeLeaveeDate);
+        // ── Resolve excludeFacultyId: User._id → Faculty._id ────────────
+        // The frontend passes leave.faculty._id which is a User ObjectId
+        // (LeaveRequest.faculty references the User model). But
+        // findAlternativeFaculty compares against Faculty._id.
+        // We bridge via email: User.email === Faculty.email
+        let resolvedExcludeId = "000000000000000000000000";
+        if (excludeFacultyId && excludeFacultyId !== "undefined" && excludeFacultyId !== "null") {
+            try {
+                // First try: maybe it's already a Faculty._id
+                const directFaculty = await Faculty.findById(excludeFacultyId);
+                if (directFaculty) {
+                    resolvedExcludeId = directFaculty._id.toString();
+                } else {
+                    // It's likely a User._id — resolve via email bridge
+                    const userDoc = await User.findById(excludeFacultyId).select("email");
+                    if (userDoc) {
+                        const facultyDoc = await Faculty.findOne({ email: new RegExp('^' + userDoc.email + '$', 'i') }).select("_id");
+                        if (facultyDoc) {
+                            resolvedExcludeId = facultyDoc._id.toString();
+                            console.log(`[getAvailableFaculty] Resolved User ${excludeFacultyId} → Faculty ${resolvedExcludeId}`);
+                        }
+                    }
+                }
+            } catch (resolveErr) {
+                console.warn("[getAvailableFaculty] Could not resolve excludeFacultyId:", resolveErr.message);
+            }
+        }
+
+        const alternatives = await findAlternativeFaculty(safeSubjectId, day, time, resolvedExcludeId, safeLeaveeDate, safeDepartment);
 
         res.status(200).json(alternatives);
     } catch (error) {

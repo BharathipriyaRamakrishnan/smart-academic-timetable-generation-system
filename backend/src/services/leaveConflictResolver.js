@@ -4,6 +4,7 @@ import FacultySubjectAssignment from "../models/FacultySubjectAssignment.js";
 import Faculty from "../models/Faculty.js";
 import User from "../models/User.js";
 import SubstitutionLog from "../models/SubstitutionLog.js";
+import mongoose from "mongoose";
 
 /**
  * Convert a date to its weekday name
@@ -61,27 +62,49 @@ export const findConflictingSlots = async (facultyId, dayName) => {
 };
 
 /**
- * Find ALL alternative faculty who can teach the same subject at the same slot
- * Returns a ranked list (subject-assigned first, then other available faculty)
+ * Find ALL alternative faculty who can teach the same subject at the same slot.
+ * Results are strictly scoped to the given department.
+ * Returns a ranked list with three priority tiers:
+ *   Priority 1 – Formally assigned to this exact subject (via FacultySubjectAssignment)
+ *   Priority 2 – Faculty whose subjects[] array includes this subject (capable of teaching it)
+ *   Priority 3 – Any other available faculty in the same department
  */
-export const findAlternativeFaculty = async (subjectId, dayName, timeSlot, excludeFacultyId, leaveDate) => {
+export const findAlternativeFaculty = async (subjectId, dayName, timeSlot, excludeFacultyId, leaveDate, department) => {
     try {
         const alternatives = [];
-        const assignedFacultyIds = new Set();
+        // Track faculty already added so we don't duplicate across tiers
+        const seenFacultyIds = new Set();
 
-        // Priority 1: Faculty assigned to this subject (only if subjectId is provided)
+        // ── Normalize subjectId to ObjectId for consistent Mongoose queries ──
+        // When subjectId comes from a Mixed field (conflictResolution), it's a
+        // plain string. Schema-typed ref queries need an ObjectId to match.
+        let normalizedSubjectId = null;
         if (subjectId) {
-            const assignments = await FacultySubjectAssignment.find({
-                subject: subjectId,
-                status: "ACTIVE"
-            }).populate("faculty");
+            try {
+                normalizedSubjectId = new mongoose.Types.ObjectId(subjectId.toString());
+            } catch (e) {
+                console.warn(`[findAlternativeFaculty] Invalid subjectId "${subjectId}", treating as null`);
+                normalizedSubjectId = null;
+            }
+        }
+
+        console.log(`[findAlternativeFaculty] dept=${department || "ALL"}, subject=${normalizedSubjectId || "none"}, day=${dayName}, time=${timeSlot}, exclude=${excludeFacultyId}`);
+
+        // ── Priority 1: Formally assigned to this subject (same department) ──
+        if (normalizedSubjectId) {
+            const assignmentQuery = { subject: normalizedSubjectId, status: "ACTIVE" };
+            if (department) assignmentQuery.department = department;
+
+            const assignments = await FacultySubjectAssignment.find(assignmentQuery).populate("faculty");
 
             for (const assignment of assignments) {
                 const faculty = assignment.faculty;
                 if (!faculty) continue;
                 if (faculty._id.toString() === excludeFacultyId.toString()) continue;
+                // Double-check department on Faculty doc (in case assignment has stale data)
+                if (department && faculty.department !== department) continue;
 
-                assignedFacultyIds.add(faculty._id.toString());
+                seenFacultyIds.add(faculty._id.toString());
 
                 // Check unavailable slots
                 const isUnavailable = faculty.unavailableSlots?.some(
@@ -104,16 +127,55 @@ export const findAlternativeFaculty = async (subjectId, dayName, timeSlot, exclu
                     designation: faculty.designation || "Faculty",
                     department: faculty.department,
                     isSubjectCompatible: true,
+                    canTeachSubject: true,
                     priority: 1
                 });
             }
         } // end if (subjectId)
 
-        // Priority 2: Any other faculty who is free at that slot
-        const allFaculty = await Faculty.find({});
-        for (const faculty of allFaculty) {
+        // ── Priority 2: Faculty whose subjects[] array includes this subject (same dept) ──
+        if (normalizedSubjectId) {
+            const capableQuery = { subjects: normalizedSubjectId };
+            if (department) capableQuery.department = department;
+
+            const capableFaculty = await Faculty.find(capableQuery);
+
+            for (const faculty of capableFaculty) {
+                if (faculty._id.toString() === excludeFacultyId.toString()) continue;
+                if (seenFacultyIds.has(faculty._id.toString())) continue;
+
+                seenFacultyIds.add(faculty._id.toString());
+
+                const isUnavailable = faculty.unavailableSlots?.some(
+                    slot => slot.day === dayName && slot.time === timeSlot
+                );
+                if (isUnavailable) continue;
+
+                const isBusy = await isSlotBusy(faculty._id, dayName, timeSlot);
+                if (isBusy) continue;
+
+                const isOnLeave = await isFacultyOnLeave(faculty._id, leaveDate);
+                if (isOnLeave) continue;
+
+                alternatives.push({
+                    id: faculty._id,
+                    name: faculty.name,
+                    email: faculty.email,
+                    designation: faculty.designation || "Faculty",
+                    department: faculty.department,
+                    isSubjectCompatible: true,
+                    canTeachSubject: true,
+                    priority: 2
+                });
+            }
+        }
+
+        // ── Priority 3: Any other available faculty in the same department ──
+        const deptQuery = department ? { department } : {};
+        const deptFaculty = await Faculty.find(deptQuery);
+        for (const faculty of deptFaculty) {
             if (faculty._id.toString() === excludeFacultyId.toString()) continue;
-            if (assignedFacultyIds.has(faculty._id.toString())) continue;
+            if (seenFacultyIds.has(faculty._id.toString())) continue;
 
             const isUnavailable = faculty.unavailableSlots?.some(
                 slot => slot.day === dayName && slot.time === timeSlot
@@ -133,13 +195,15 @@ export const findAlternativeFaculty = async (subjectId, dayName, timeSlot, exclu
                 designation: faculty.designation || "Faculty",
                 department: faculty.department,
                 isSubjectCompatible: false,
-                priority: 2
+                canTeachSubject: false,
+                priority: 3
             });
         }
 
-        // Sort: subject-compatible first, then alphabetically
+        // Sort: highest priority first, then alphabetically within each tier
         alternatives.sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name));
 
+        console.log(`[findAlternativeFaculty] Found ${alternatives.length} alternatives (dept: ${department || "ALL"})`);
         return alternatives;
     } catch (error) {
         console.error("Error finding alternative faculty:", error);
@@ -198,7 +262,7 @@ export const isFacultyOnLeave = async (facultyId, leaveDate) => {
     // Find User with matching Faculty doc via email bridge
     const faculty = await Faculty.findById(facultyId).select("email");
     if (!faculty) return false;
-    const user = await User.findOne({ email: faculty.email }).select("_id");
+    const user = await User.findOne({ email: faculty.email.toLowerCase() }).select("_id");
     if (!user) return false;
 
     const leave = await LeaveRequest.findOne({
@@ -259,7 +323,7 @@ export const resolveLeaveConflicts = async (userId, leaveDate) => {
         const user = await User.findById(userId).select("email name");
         if (!user) throw new Error(`User ${userId} not found`);
 
-        const facultyDoc = await Faculty.findOne({ email: user.email });
+        const facultyDoc = await Faculty.findOne({ email: new RegExp('^' + user.email + '$', 'i') });
         if (!facultyDoc) {
             console.log(`[LeaveConflictResolver] No Faculty document found for User email: ${user.email}. No timetable conflicts possible.`);
             return { hasConflicts: false, conflicts: [], resolutions: [], note: "No Faculty record linked to this user account" };
@@ -295,7 +359,8 @@ export const resolveLeaveConflicts = async (userId, leaveDate) => {
                 conflict.day,
                 conflict.time,
                 facultyId,
-                leaveDate   // Pass actual date for accurate leave screening
+                leaveDate,              // Pass actual date for accurate leave screening
+                facultyDoc.department   // Restrict to same department
             );
 
             if (alternativeFacultyList.length > 0) {
@@ -303,7 +368,7 @@ export const resolveLeaveConflicts = async (userId, leaveDate) => {
                 resolution.suggestions.push({
                     type: "FACULTY_REPLACEMENT",
                     priority: 1,
-                    description: `Replace with ${best.name}${best.isSubjectCompatible ? ' (Subject Compatible)' : ''}`,
+                    description: `Replace with ${best.name}${best.priority === 1 ? ' (Assigned to Subject)' : best.priority === 2 ? ' (Can Teach Subject)' : ''}`,
                     details: best,
                     allAlternatives: alternativeFacultyList,
                     status: "AVAILABLE"

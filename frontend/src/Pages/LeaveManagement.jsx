@@ -37,7 +37,7 @@ const StatusBadge = ({ status }) => {
 };
 
 /* ─── Conflict Slot Card ──────────────────────────────────────── */
-function ConflictSlotCard({ conflict, resolution, leaveId, leaveDate, leaveFacultyId, onAssigned }) {
+function ConflictSlotCard({ conflict, resolution, leaveId, leaveDate, leaveFacultyId, department, onAssigned }) {
     const [selectedFacultyId, setSelectedFacultyId] = useState("");
     const [assigning, setAssigning] = useState(false);
     const [availableFaculty, setAvailableFaculty] = useState([]);
@@ -60,7 +60,8 @@ function ConflictSlotCard({ conflict, resolution, leaveId, leaveDate, leaveFacul
                 time: conflict.time,
                 excludeFacultyId: excludeId,
                 ...(subjectId && subjectId !== "[object Object]" && { subjectId }),
-                ...(leaveDate && { leaveDate: new Date(leaveDate).toISOString() })
+                ...(leaveDate && { leaveDate: new Date(leaveDate).toISOString() }),
+                ...(department && { department })
             });
             const res = await fetch(`/api/substitutions/available-faculty?${params}`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -164,11 +165,31 @@ function ConflictSlotCard({ conflict, resolution, leaveId, leaveDate, leaveFacul
                         <option value="">
                             {loadingFaculty ? "Loading faculty..." : availableFaculty.length === 0 ? "No available faculty" : "— Select substitute faculty —"}
                         </option>
-                        {availableFaculty.map(f => (
+                        {/* Priority 1: Formally assigned to this subject */}
+                        {availableFaculty.some(f => f.priority === 1) && (
+                            <option disabled style={{ fontWeight: 700 }}>── ⭐ Assigned to this Subject ──</option>
+                        )}
+                        {availableFaculty.filter(f => f.priority === 1).map(f => (
                             <option key={f.id} value={f.id}>
-                                {f.isSubjectCompatible ? "⭐ " : ""}{f.name}
-                                {f.designation ? ` (${f.designation})` : ""}
-                                {f.isSubjectCompatible ? " — Subject Compatible" : ""}
+                                ⭐ {f.name}{f.designation ? ` (${f.designation})` : ""} — Assigned
+                            </option>
+                        ))}
+                        {/* Priority 2: Can teach this subject */}
+                        {availableFaculty.some(f => f.priority === 2) && (
+                            <option disabled style={{ fontWeight: 700 }}>── 📚 Can Teach this Subject ──</option>
+                        )}
+                        {availableFaculty.filter(f => f.priority === 2).map(f => (
+                            <option key={f.id} value={f.id}>
+                                📚 {f.name}{f.designation ? ` (${f.designation})` : ""} — Subject Expert
+                            </option>
+                        ))}
+                        {/* Priority 3: Other available faculty */}
+                        {availableFaculty.some(f => f.priority === 3) && (
+                            <option disabled style={{ fontWeight: 700 }}>── Other Available Faculty ──</option>
+                        )}
+                        {availableFaculty.filter(f => f.priority === 3).map(f => (
+                            <option key={f.id} value={f.id}>
+                                {f.name}{f.designation ? ` (${f.designation})` : ""}
                             </option>
                         ))}
                     </select>
@@ -211,14 +232,15 @@ function ConflictSlotCard({ conflict, resolution, leaveId, leaveDate, leaveFacul
                 </div>
             )}
 
-            {/* Pre-computed suggestions info */}
-            {!isResolved && resolution?.suggestions?.[0]?.type === "FACULTY_REPLACEMENT" && (
+            {/* Live suggestion from the same dataset as the dropdown */}
+            {!isResolved && !loadingFaculty && availableFaculty.length > 0 && (
                 <div style={{
                     marginTop: "0.75rem", fontSize: "0.78rem",
                     color: "#a78bfa", display: "flex", alignItems: "center", gap: "0.4rem"
                 }}>
-                    💡 System suggests: <strong>{resolution.suggestions[0]?.details?.name}</strong>
-                    {resolution.suggestions[0]?.details?.isSubjectCompatible ? " (Subject Compatible)" : ""}
+                    💡 System suggests: <strong>{availableFaculty[0].name}</strong>
+                    {availableFaculty[0].priority === 1 ? " (Assigned to Subject)" : 
+                     availableFaculty[0].priority === 2 ? " (Can Teach Subject)" : ""}
                 </div>
             )}
         </div>
@@ -540,6 +562,7 @@ export default function LeaveManagement() {
                                                     leaveId={leave._id}
                                                     leaveDate={leave.date}
                                                     leaveFacultyId={leave.faculty?._id || leave.faculty}
+                                                    department={leave.department}
                                                     onAssigned={handleSubAssigned}
                                                 />
                                             ))}
