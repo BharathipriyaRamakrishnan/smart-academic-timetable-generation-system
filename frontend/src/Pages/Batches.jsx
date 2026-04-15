@@ -8,6 +8,7 @@ export default function Batches() {
         department: "",
         studentsCount: ""
     });
+    const [editingId, setEditingId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [departments, setDepartments] = useState([]);
@@ -47,8 +48,11 @@ export default function Batches() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch("/api/batches", {
-                method: "POST",
+            const url = editingId ? `/api/batches/${editingId}` : "/api/batches";
+            const method = editingId ? "PUT" : "POST";
+            
+            const res = await fetch(url, {
+                method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
             });
@@ -58,16 +62,31 @@ export default function Batches() {
                     department: "",
                     studentsCount: ""
                 });
+                setEditingId(null);
                 fetchBatches();
-                alert("Batch added successfully!");
+                alert(`Batch ${editingId ? "updated" : "added"} successfully!`);
             } else {
                 const errorData = await res.json();
                 alert(`Error: ${errorData.message}`);
             }
         } catch (error) {
-            console.error("Error creating batch:", error);
-            alert("An error occurred while creating batch.");
+            console.error(`Error ${editingId ? "updating" : "creating"} batch:`, error);
+            alert(`An error occurred while ${editingId ? "updating" : "creating"} batch.`);
         }
+    };
+
+    const handleEdit = (batch) => {
+        setEditingId(batch._id);
+        setFormData({
+            name: batch.name,
+            department: batch.department,
+            studentsCount: batch.studentsCount
+        });
+    };
+
+    const cancelEdit = () => {
+        setEditingId(null);
+        setFormData({ name: "", department: "", studentsCount: "" });
     };
 
     const handleDelete = async (id) => {
@@ -92,7 +111,14 @@ export default function Batches() {
 
                     {/* Form */}
                     <div className="glass-panel" style={{ padding: "1.5rem", height: "fit-content" }}>
-                        <h2 style={{ marginTop: 0 }}>Add Batch</h2>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                            <h2 style={{ margin: 0 }}>{editingId ? "Edit Batch" : "Add Batch"}</h2>
+                            {editingId && (
+                                <button onClick={cancelEdit} style={{ background: "transparent", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                                    Cancel
+                                </button>
+                            )}
+                        </div>
                         <form onSubmit={handleSubmit}>
                             <input
                                 className="input-field"
@@ -125,7 +151,7 @@ export default function Batches() {
                             />
 
                             <button type="submit" className="btn-primary" style={{ width: "100%" }}>
-                                Add Batch
+                                {editingId ? "Update Batch" : "Add Batch"}
                             </button>
                         </form>
                     </div>
@@ -164,12 +190,22 @@ export default function Batches() {
                                                         {b.studentsCount} Students
                                                     </p>
                                                 </div>
-                                                <button
-                                                    onClick={() => handleDelete(b._id)}
-                                                    style={{ color: "#ef4444", background: "none", fontSize: "1.2rem" }}
-                                                >
-                                                    &times;
-                                                </button>
+                                                <div style={{ display: "flex", gap: "0.5rem" }}>
+                                                    <button
+                                                        onClick={() => handleEdit(b)}
+                                                        style={{ color: "#3b82f6", background: "none", fontSize: "1rem" }}
+                                                        title="Edit"
+                                                    >
+                                                        ✎
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(b._id)}
+                                                        style={{ color: "#ef4444", background: "none", fontSize: "1.2rem" }}
+                                                        title="Delete"
+                                                    >
+                                                        &times;
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                 </div>

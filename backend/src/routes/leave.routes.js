@@ -7,7 +7,8 @@ import {
     updateLeaveStatus,
     getLeaveWithConflicts,
     applyConflictSuggestion,
-    getApprovedLeavesWithConflicts
+    getApprovedLeavesWithConflicts,
+    deleteLeaveRequest
 } from "../controllers/leave.controller.js";
 
 const router = express.Router();
@@ -25,5 +26,6 @@ router.get("/approved-with-conflicts", coordinatorOnly, getApprovedLeavesWithCon
 router.get("/:id/conflicts", coordinatorOnly, getLeaveWithConflicts);
 router.patch("/:id/status", coordinatorOnly, updateLeaveStatus);
 router.post("/apply-suggestion", coordinatorOnly, applyConflictSuggestion);
+router.delete("/:id", coordinatorOnly, deleteLeaveRequest);
 
 export default router;

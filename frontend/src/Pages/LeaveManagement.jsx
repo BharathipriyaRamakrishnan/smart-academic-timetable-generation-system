@@ -334,6 +334,50 @@ export default function LeaveManagement() {
         }
     };
 
+    const handleDeleteLeave = async (leaveId) => {
+        if (!window.confirm("Are you sure you want to delete this leave record completely? This action cannot be undone.")) return;
+        setProcessing(prev => ({ ...prev, [leaveId]: true }));
+        try {
+            const res = await fetch(`/api/leaves/${leaveId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast("Leave record deleted");
+                fetchAll();
+            } else {
+                showToast(data.message || "Failed to delete leave record", "error");
+            }
+        } catch (err) {
+            showToast("Error deleting leave record", "error");
+        } finally {
+            setProcessing(prev => ({ ...prev, [leaveId]: false }));
+        }
+    };
+
+    const handleDeleteLog = async (logId) => {
+        if (!window.confirm("Are you sure you want to delete this substitution log?")) return;
+        setRevertingId(logId);
+        try {
+            const res = await fetch(`/api/substitutions/${logId}/log`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast("Substitution log deleted");
+                fetchAll();
+            } else {
+                showToast(data.message || "Failed to delete log", "error");
+            }
+        } catch (err) {
+            showToast("Error deleting log", "error");
+        } finally {
+            setRevertingId(null);
+        }
+    };
+
     const TABS = [
         { id: "pending",   label: `⏳ Pending Approvals${pendingLeaves.length ? ` (${pendingLeaves.length})` : ""}` },
         { id: "conflicts", label: `⚠️ Action Required${approvedLeaves.length ? ` (${approvedLeaves.length})` : ""}` },
@@ -525,16 +569,16 @@ export default function LeaveManagement() {
                                         {/* Leave meta */}
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", gap: "1rem", flexWrap: "wrap" }}>
                                             <div>
-                                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                                                    <div style={{
-                                                        padding: "0.25rem 0.6rem",
-                                                        background: "rgba(239,68,68,0.15)",
-                                                        color: "#ef4444",
-                                                        borderRadius: "8px",
-                                                        fontSize: "0.72rem",
-                                                        fontWeight: 700
-                                                    }}>⚠️ ACTION REQUIRED</div>
-                                                </div>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+                                                        <div style={{
+                                                            padding: "0.25rem 0.6rem",
+                                                            background: "rgba(239,68,68,0.15)",
+                                                            color: "#ef4444",
+                                                            borderRadius: "8px",
+                                                            fontSize: "0.72rem",
+                                                            fontWeight: 700
+                                                        }}>⚠️ ACTION REQUIRED</div>
+                                                    </div>
                                                 <h3 style={{ margin: "0 0 0.3rem", fontSize: "1.05rem" }}>
                                                     {leave.faculty?.name} is on leave
                                                 </h3>
@@ -547,6 +591,24 @@ export default function LeaveManagement() {
                                                     Reason: "{leave.reason}"
                                                 </div>
                                             </div>
+                                            <button
+                                                onClick={() => handleDeleteLeave(leave._id)}
+                                                disabled={processing[leave._id]}
+                                                style={{
+                                                    padding: "0.5rem 1rem",
+                                                    background: "transparent",
+                                                    color: "#ef4444",
+                                                    border: "1px solid rgba(239,68,68,0.3)",
+                                                    borderRadius: "8px",
+                                                    fontWeight: 600,
+                                                    fontSize: "0.8rem",
+                                                    cursor: processing[leave._id] ? "not-allowed" : "pointer",
+                                                    opacity: processing[leave._id] ? 0.5 : 1,
+                                                    transition: "all 0.2s"
+                                                }}
+                                            >
+                                                🗑️ Delete
+                                            </button>
                                         </div>
 
                                         {/* Conflict slots */}
@@ -642,15 +704,34 @@ export default function LeaveManagement() {
                                                         }}>{log.status}</span>
                                                     </td>
                                                     <td style={{ padding: "0.875rem 1rem" }}>
-                                                        {log.status === "ACTIVE" && (
+                                                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                                                            {log.status === "ACTIVE" && (
+                                                                <button
+                                                                    onClick={() => handleRevert(log._id)}
+                                                                    disabled={revertingId === log._id}
+                                                                    style={{
+                                                                        padding: "0.35rem 0.75rem",
+                                                                        background: "rgba(239,68,68,0.1)",
+                                                                        color: "#ef4444",
+                                                                        border: "1px solid rgba(239,68,68,0.25)",
+                                                                        borderRadius: "8px",
+                                                                        cursor: revertingId === log._id ? "not-allowed" : "pointer",
+                                                                        fontSize: "0.78rem",
+                                                                        fontWeight: 600,
+                                                                        opacity: revertingId === log._id ? 0.5 : 1
+                                                                    }}
+                                                                >
+                                                                    {revertingId === log._id ? "..." : "↩ Revert"}
+                                                                </button>
+                                                            )}
                                                             <button
-                                                                onClick={() => handleRevert(log._id)}
+                                                                onClick={() => handleDeleteLog(log._id)}
                                                                 disabled={revertingId === log._id}
                                                                 style={{
                                                                     padding: "0.35rem 0.75rem",
-                                                                    background: "rgba(239,68,68,0.1)",
-                                                                    color: "#ef4444",
-                                                                    border: "1px solid rgba(239,68,68,0.25)",
+                                                                    background: "transparent",
+                                                                    color: "#94a3b8",
+                                                                    border: "1px solid rgba(148,163,184,0.3)",
                                                                     borderRadius: "8px",
                                                                     cursor: revertingId === log._id ? "not-allowed" : "pointer",
                                                                     fontSize: "0.78rem",
@@ -658,9 +739,9 @@ export default function LeaveManagement() {
                                                                     opacity: revertingId === log._id ? 0.5 : 1
                                                                 }}
                                                             >
-                                                                {revertingId === log._id ? "..." : "↩ Revert"}
+                                                                🗑️ Delete
                                                             </button>
-                                                        )}
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}

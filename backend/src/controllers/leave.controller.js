@@ -402,3 +402,26 @@ export const updateLeaveStatus = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+/* ─────────────────────────────────────────────────────────────────
+   COORDINATOR: Delete a leave request
+────────────────────────────────────────────────────────────────── */
+export const deleteLeaveRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const leave = await LeaveRequest.findById(id);
+        
+        if (!leave) {
+            return res.status(404).json({ message: "Leave request not found" });
+        }
+
+        if (req.user.role === "COORDINATOR" && req.user.department !== leave.department) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        await LeaveRequest.findByIdAndDelete(id);
+        res.status(200).json({ message: "Leave request deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

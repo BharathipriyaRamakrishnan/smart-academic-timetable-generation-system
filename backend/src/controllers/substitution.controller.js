@@ -343,3 +343,25 @@ export const getAvailableFaculty = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+/* ─────────────────────────────────────────────────────────────────
+   DELETE /api/substitutions/:id/log
+   Delete a substitution log entry
+────────────────────────────────────────────────────────────────── */
+export const deleteSubstitutionLog = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const logEntry = await SubstitutionLog.findById(id);
+        if (!logEntry) return res.status(404).json({ message: "Substitution log not found" });
+        if (req.user.role === "COORDINATOR" && logEntry.department !== req.user.department) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+        
+        // Optional: If active, we could automatically revert it, but just deleting the record
+        // as per standard database row deletion for log management.
+        await SubstitutionLog.findByIdAndDelete(id);
+        res.status(200).json({ message: "Substitution log deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

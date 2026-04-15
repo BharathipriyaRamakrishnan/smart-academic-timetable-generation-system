@@ -4,7 +4,8 @@ import {
     assignSubstitute,
     getSubstitutionLog,
     revertSubstitution,
-    getAvailableFaculty
+    getAvailableFaculty,
+    deleteSubstitutionLog
 } from "../controllers/substitution.controller.js";
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.post("/assign", assignSubstitute);
 router.get("/log", getSubstitutionLog);
 router.get("/available-faculty", getAvailableFaculty);
 router.delete("/:id/revert", revertSubstitution);
+router.delete("/:id/log", deleteSubstitutionLog);
 
 export default router;
